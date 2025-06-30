@@ -3,15 +3,15 @@ const BLOGGER_API_KEY_STORAGE_KEY = 'blogger_api_key';
 
 const blogUrlOrIdInput = document.getElementById('blogUrlOrIdInput');
 const apiKeyInput = document.getElementById('apiKeyInput');
-const toggleApiKeyVisibilityButton = document.getElementById('toggleApiKeyVisibility'); // New element
+const toggleApiKeyVisibilityButton = document.getElementById('toggleApiKeyVisibility');
 const getPostsButton = document.getElementById('getPostsButton');
 const clearApiKeyButton = document.getElementById('clearApiKeyButton');
 const messagesDiv = document.getElementById('messages');
 const loadingSpinner = document.getElementById('loadingSpinner');
 const postsList = document.getElementById('postsList');
 
-let gapiClientReady = false; // Tracks if gapi.client.init() has successfully run
-let gapiCoreLoadedPromise = null; // Promise to track when gapi.load('client') is done
+let gapiClientReady = false;
+let gapiCoreLoadedPromise = null;
 
 // --- Utility Functions ---
 
@@ -29,12 +29,15 @@ function showLoading(show) {
     clearApiKeyButton.disabled = show;
     blogUrlOrIdInput.disabled = show;
     apiKeyInput.disabled = show;
-    toggleApiKeyVisibilityButton.disabled = show; // Disable toggle button too
+    toggleApiKeyVisibilityButton.disabled = show;
     if (show) {
         messagesDiv.textContent = 'Fetching posts...';
         messagesDiv.style.color = 'blue';
     } else {
-        messagesDiv.textContent = '';
+        // --- IMPROVEMENT: Only clear the loading message, not actual error/success messages ---
+        if (messagesDiv.textContent === 'Fetching posts...') {
+            messagesDiv.textContent = '';
+        }
     }
 }
 
@@ -52,7 +55,6 @@ function clearSavedApiKey() {
 
 // --- GAPI Core Loading (from index.html onload) ---
 
-// This function is called by the 'onload' attribute of the Google API script tag in index.html
 window.onGapiLoaded = function() {
     console.log('Google API client script loaded. Now loading the core client module...');
     gapiCoreLoadedPromise = new Promise(resolve => {
@@ -63,11 +65,11 @@ window.onGapiLoaded = function() {
         console.log('gapi.client core module loaded.');
         const savedKey = getSavedApiKey();
         if (savedKey) {
-            apiKeyInput.value = savedKey; // Populate input
-            initGapiClient(savedKey); // Try to init with saved key
+            apiKeyInput.value = savedKey;
+            initGapiClient(savedKey);
         } else {
-            displayMessage('Please enter your Google API Key and Blog URL/ID to begin.', 'info');
-            getPostsButton.disabled = false; // Enable button so user can enter key and click
+            displayMessage('Please enter your Google API Key and Blog URL or ID to begin.', 'info');
+            getPostsButton.disabled = false;
         }
     }).catch(error => {
         console.error('Error loading gapi.client core module:', error);
@@ -123,13 +125,12 @@ async function getBlogIdFromUrl(blogUrl, apiKey) {
             key: apiKey
         });
         if (!response.result || !response.result.id) {
-             throw new Error("Blog ID not found for the provided URL. Please check the URL.");
+             throw new Error("Blog ID not found for the provided URL. Please check the URL carefully."); // More specific message
         }
         return response.result.id;
     } catch (error) {
-        // Catch specific API errors for better messages
         if (error.result && error.result.error && error.result.error.code === 404) {
-            throw new Error("Blog not found. Please verify the URL/ID and API key restrictions.");
+            throw new Error("Blog not found for this URL. Please verify the URL and your API key restrictions."); // More specific message
         }
         throw new Error(`Failed to get Blog ID from URL: ${error.details || error.message || JSON.stringify(error)}`);
     }
@@ -149,7 +150,6 @@ async function listAllPosts(blogId, apiKey, posts = [], pageToken = undefined) {
         });
 
         if (!response.result || !response.result.items) {
-            // No items means no posts, not necessarily an error, but good to handle
             return posts; // Return existing posts, which might be empty
         }
 
@@ -161,12 +161,11 @@ async function listAllPosts(blogId, apiKey, posts = [], pageToken = undefined) {
             return posts;
         }
     } catch (error) {
-        // Catch specific API errors for better messages
         if (error.result && error.result.error && error.result.error.code === 404) {
-            throw new Error("Blog not found or invalid ID. Please verify the Blog ID and API key restrictions.");
+            throw new Error("Blog not found for this ID. Please verify the Blog ID and API key restrictions."); // More specific message
         }
         if (error.result && error.result.error && error.result.error.code === 400) {
-            throw new Error("Invalid request or malformed Blog ID. Please check the ID.");
+            throw new Error("Invalid Blog ID or malformed request. Please check the ID."); // More specific message
         }
         throw new Error(`Failed to list posts: ${error.details || error.message || JSON.stringify(error)}`);
     }
@@ -174,7 +173,6 @@ async function listAllPosts(blogId, apiKey, posts = [], pageToken = undefined) {
 
 // --- Event Handlers ---
 
-// Toggle API Key Visibility
 toggleApiKeyVisibilityButton.addEventListener('click', () => {
     if (apiKeyInput.type === 'password') {
         apiKeyInput.type = 'text';
@@ -191,7 +189,7 @@ getPostsButton.addEventListener('click', async () => {
     const apiKey = apiKeyInput.value.trim();
 
     postsList.innerHTML = '';
-    messagesDiv.textContent = '';
+    messagesDiv.textContent = ''; // Clear existing messages at the start of a new request
 
     if (!blogUrlOrId) {
         displayMessage('Please enter a Blogger Blog URL or ID.');
@@ -206,38 +204,33 @@ getPostsButton.addEventListener('click', async () => {
 
     showLoading(true);
     try {
-        // Ensure gapi.client is initialized with the current API key
         if (!gapiCoreLoadedPromise) {
             throw new Error("Google API client core script not yet loaded. Please wait.");
         }
-        await gapiCoreLoadedPromise; // Wait for the core gapi.client to be loaded
+        await gapiCoreLoadedPromise;
 
-        await initGapiClient(apiKey); // Initialize client with the current API key
+        await initGapiClient(apiKey);
         if (!gapiClientReady) {
              throw new Error("API Client could not be initialized with the provided key. Check console for details.");
         }
 
-        // --- Improvement 2: Auto-prefix HTTPS ---
         if (blogUrlOrId.length > 0 && !(blogUrlOrId.startsWith('http://') || blogUrlOrId.startsWith('https://')) && !/^\d+$/.test(blogUrlOrId)) {
-            // Only prefix if it looks like a domain and not just an ID
             blogUrlOrId = 'https://' + blogUrlOrId;
-            blogUrlOrIdInput.value = blogUrlOrId; // Update input field
+            blogUrlOrIdInput.value = blogUrlOrId;
             displayMessage('Automatically prefixed URL with https://', 'info');
         }
-
 
         let blogId = blogUrlOrId;
         if (blogUrlOrId.startsWith('http://') || blogUrlOrId.startsWith('https://')) {
             displayMessage('Attempting to get Blog ID from URL...', 'info');
-            blogId = await getBlogIdFromUrl(blogUrlOrId, apiKey); // getBlogIdFromUrl now throws if not found
+            blogId = await getBlogIdFromUrl(blogUrlOrId, apiKey);
             displayMessage(`Found Blog ID: ${blogId}`, 'success');
         }
 
         const allPosts = await listAllPosts(blogId, apiKey);
 
-        // --- Improvement 3: Blog ID not found / No posts message ---
         if (allPosts.length === 0) {
-            postsList.innerHTML = '<li>No posts found for this blog, or invalid Blog ID/URL. Please check.</li>';
+            postsList.innerHTML = '<li>No posts found for this blog, or the provided Blog ID/URL is invalid or has no posts.</li>'; // More explicit message
             displayMessage('No posts found for the provided Blog ID/URL.', 'info');
         } else {
             allPosts.sort((a, b) => new Date(b.published) - new Date(a.published));
@@ -264,8 +257,8 @@ getPostsButton.addEventListener('click', async () => {
 clearApiKeyButton.addEventListener('click', () => {
     clearSavedApiKey();
     apiKeyInput.value = '';
-    apiKeyInput.type = 'password'; // Reset to masked view
-    toggleApiKeyVisibilityButton.textContent = 'Show Key'; // Reset button text
+    apiKeyInput.type = 'password';
+    toggleApiKeyVisibilityButton.textContent = 'Show Key';
     gapiClientReady = false;
     displayMessage('API Key cleared from local storage. Please re-enter to use.', 'info');
     getPostsButton.disabled = true;
@@ -276,14 +269,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedKey = getSavedApiKey();
     if (savedKey) {
         apiKeyInput.value = savedKey;
-        // The onGapiLoaded function (called by script's onload) will then
-        // automatically try to initialize gapi.client with this saved key.
     } else {
-        displayMessage('Please enter your Google API Key and Blog URL/ID.', 'info');
-        // No saved key, disable button until user enters one and it's init
-        getPostsButton.disabled = true;
+        // Only show this initial message if no key is saved
+        displayMessage('Please enter your Google API Key and Blog URL or ID to begin.', 'info');
     }
-    // Set default state for API key input
+    getPostsButton.disabled = true; // Initially disable until gapi is ready and/or key is entered
     apiKeyInput.type = 'password';
     toggleApiKeyVisibilityButton.textContent = 'Show Key';
 });
