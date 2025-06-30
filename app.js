@@ -13,7 +13,7 @@ const messagesDiv = document.getElementById('messages');
 const loadingSpinner = document.getElementById('loadingSpinner');
 const postsList = document.getElementById('postsList');
 const totalPostsCountDiv = document.getElementById('totalPostsCount');
-const saveAsHtmlButton = document.getElementById('saveAsHtmlButton'); // NEW
+const saveAsHtmlButton = document.getElementById('saveAsHtmlButton');
 
 let gapiClientReady = false;
 let gapiCoreLoadedPromise = null;
@@ -46,7 +46,7 @@ function updateButtonStates() {
     const isApiKeyEmpty = apiKeyInput.value.trim().length === 0;
     const isBlogInputEmpty = blogUrlOrIdInput.value.trim().length === 0;
     const isCurrentApiKeyInClient = apiKeyInput.value.trim() === currentApiKeyInClient && gapiClientReady;
-    const hasPostsDisplayed = postsList.children.length > 0; // NEW: Check if there are posts to save
+    const hasPostsDisplayed = postsList.children.length > 0;
 
     console.log(`[updateButtonStates] API Empty: ${isApiKeyEmpty}, Blog Empty: ${isBlogInputEmpty}, GAPI Ready: ${gapiClientReady}, Key Matches Client: ${isCurrentApiKeyInClient}, Has Posts: ${hasPostsDisplayed}`);
 
@@ -61,7 +61,6 @@ function updateButtonStates() {
         localStorage.removeItem(BLOGGER_API_KEY_REMEMBER_FLAG);
     }
 
-    // NEW: Enable Save as HTML button only if posts are displayed
     saveAsHtmlButton.disabled = !hasPostsDisplayed;
 }
 
@@ -74,7 +73,7 @@ function showLoading(show) {
     apiKeyInput.disabled = show;
     toggleApiKeyVisibilityButton.disabled = show;
     rememberApiKeyCheckbox.disabled = show;
-    saveAsHtmlButton.disabled = show; // Disable save button during loading
+    saveAsHtmlButton.disabled = show;
 
     if (show) {
         messagesDiv.textContent = 'Fetching posts...';
@@ -130,7 +129,6 @@ function getBlogIdFromQuery() {
 async function autoGetPostsIfReady() {
     if (apiKeyRememberedOnLoad && blogIdFromQueryString && gapiClientReady) {
         console.log("Auto-triggering Get All Posts...");
-        // Directly call the getPostsButton's click handler logic
         await getPostsButton.click();
     }
 }
@@ -434,7 +432,7 @@ clearApiKeyButton.addEventListener('click', () => {
     updateButtonStates();
 });
 
-// NEW: Save as HTML button functionality
+// Save as HTML button functionality
 saveAsHtmlButton.addEventListener('click', () => {
     if (postsList.children.length === 0) {
         displayMessage('No posts to save. Please fetch posts first.', 'info');
@@ -451,8 +449,25 @@ saveAsHtmlButton.addEventListener('click', () => {
         second: '2-digit',
         hour12: true
     });
-    const formattedDate = now.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
-    const blogIdentifier = blogUrlOrIdInput.value.trim().replace(/[^a-zA-Z0-9-]/g, '_').substring(0, 50); // Basic slug from URL/ID
+
+    // NEW: YYYY-MM-DD format for filename and title
+    const formattedDateYYYYMMDD = now.getFullYear() + '-' +
+                                (now.getMonth() + 1).toString().padStart(2, '0') + '-' +
+                                now.getDate().toString().padStart(2, '0');
+
+    // NEW: More robust slug creation for filename
+    let blogIdentifierForFile = blogUrlOrIdInput.value.trim()
+        .replace(/^(https?:\/\/)/, '') // Remove http(s)://
+        .replace(/\//g, '-')          // Replace slashes with hyphens
+        .replace(/\.+/g, '-')         // Replace multiple dots with single hyphen
+        .replace(/[^a-zA-Z0-9-]/g, '') // Remove any remaining non-alphanumeric/hyphen characters
+        .replace(/^-+|-+$/g, '')      // Trim leading/trailing hyphens
+        .substring(0, 50);            // Keep it reasonably short
+
+    // Fallback if the blogIdentifier becomes empty after sanitization
+    if (blogIdentifierForFile === '') {
+        blogIdentifierForFile = 'unknown-blog';
+    }
 
     const headerHtml = `
         <div style="font-family: sans-serif; margin-bottom: 20px; padding: 10px; border: 1px solid #eee; background-color: #f9f9f9; border-radius: 5px;">
@@ -461,7 +476,6 @@ saveAsHtmlButton.addEventListener('click', () => {
         </div>
     `;
 
-    // Reconstruct the exact HTML of the list as currently displayed
     const listHtml = `
         <h2 style="font-family: sans-serif; color: #333;">Posts</h2>
         <div style="font-family: sans-serif; font-size: 1.1em; font-weight: bold; margin-bottom: 10px; color: #007bff;">${totalPostsCountDiv.textContent}</div>
@@ -476,8 +490,7 @@ saveAsHtmlButton.addEventListener('click', () => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Blogger Posts - ${blogUrlOrIdInput.value.trim().substring(0, 50)} - ${formattedDate}</title>
-            <style>
+            <title>Blogger Posts - ${blogUrlOrIdInput.value.trim()} - ${formattedDateYYYYMMDD}</title> <style>
                 body { font-family: sans-serif; margin: 20px; line-height: 1.5; }
                 ul { list-style: none; padding: 0; margin: 0; }
                 .post-month-header {
@@ -516,7 +529,7 @@ saveAsHtmlButton.addEventListener('click', () => {
     `;
 
     const blob = new Blob([fullHtmlContent], { type: 'text/html;charset=utf-8' });
-    const fileName = `Blogger_Posts_${blogIdentifier}_${formattedDate}.html`;
+    const fileName = `${blogIdentifierForFile}-Posts-List-${formattedDateYYYYMMDD}.html`; // NEW: Filename format
 
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -524,7 +537,7 @@ saveAsHtmlButton.addEventListener('click', () => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(a.href); // Clean up the URL object
+    URL.revokeObjectURL(a.href);
 
     displayMessage(`List saved as "${fileName}"`, 'success');
 });
