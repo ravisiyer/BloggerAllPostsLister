@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blogger All Posts Lister</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        #controls { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; background-color: #f9f9f9; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"] { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
+        button:hover { background-color: #0056b3; }
+        #messages { margin-top: 15px; color: red; }
+        #postListContainer { margin-top: 20px; }
+        .post-item { border: 1px solid #eee; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+        .post-item h3 { margin-top: 0; color: #333; }
+        .post-item p { font-size: 0.9em; color: #666; }
+        .loading-spinner { display: none; margin-top: 20px; font-style: italic; color: #555; }
+    </style>
+</head>
+<body>
+    <h1>Blogger All Posts Lister</h1>
+
+    <div id="controls">
+        <p>This tool helps you list all posts from any public Blogger blog using its URL or ID, and your own Google API Key.</p>
+        <p>
+            **Important:** Your API Key will be stored only in your browser's local storage for convenience.
+            You are responsible for its security and usage quotas. Please ensure your API key has appropriate
+            <a href="https://console.cloud.google.com/apis/credentials" target="_blank">HTTP referrer restrictions</a>
+            (e.g., `https://<your-github-pages-domain>/*` and/or `https://*.blogspot.com/*`).
+        </p>
+
+        <label for="blogUrlOrIdInput">Blogger Blog URL or ID:</label>
+        <input type="text" id="blogUrlOrIdInput" placeholder="e.g., https://yourblog.blogspot.com/ or 1234567890">
+
+        <label for="apiKeyInput">Google API Key:</label>
+        <input type="text" id="apiKeyInput" placeholder="Enter your Google API Key here">
+
+        <button id="getPostsButton">Get All Posts</button>
+        <button id="clearApiKeyButton" style="background-color: #dc3545;">Clear API Key</button>
+        <div id="messages"></div>
+        <div id="loadingSpinner" class="loading-spinner">Loading posts...</div>
+    </div>
+
+    <div id="postListContainer">
+        <h2>Posts</h2>
+        <ul id="postsList">
+            </ul>
+    </div>
+
+    <script async defer src="https://apis.google.com/js/api.js" onload="onGapiLoaded()"></script>
+    <script src="app.js"></script>
+</body>
+</html>
