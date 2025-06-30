@@ -8,7 +8,7 @@
         body { font-family: sans-serif; margin: 20px; }
         #controls { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; background-color: #f9f9f9; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], input[type="password"] { /* Combined styles for both types */
+        input[type="text"], input[type="password"] {
             width: 100%;
             padding: 8px;
             margin-bottom: 10px;
@@ -16,20 +16,20 @@
             border-radius: 4px;
             box-sizing: border-box;
         }
-        .api-key-container { /* New container for key and toggle button */
+        .api-key-container {
             display: flex;
             align-items: center;
             margin-bottom: 10px;
         }
         .api-key-container input {
-            flex-grow: 1; /* Allow input to take available space */
-            margin-bottom: 0; /* Remove default margin */
-            margin-right: 8px; /* Space between input and button */
+            flex-grow: 1;
+            margin-bottom: 0;
+            margin-right: 8px;
         }
         .api-key-container button {
             padding: 8px 12px;
             font-size: 0.9em;
-            background-color: #6c757d; /* Gray color */
+            background-color: #6c757d;
             color: white;
             border: none;
             border-radius: 4px;
@@ -37,6 +37,21 @@
         }
         .api-key-container button:hover {
             background-color: #5a6268;
+        }
+        .remember-key-option { /* New style for the checkbox container */
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .remember-key-option input { /* Style for checkbox itself */
+            width: auto; /* Checkbox should not take full width */
+            margin-right: 8px;
+            margin-bottom: 0;
+        }
+        .remember-key-option label { /* Style for checkbox label */
+            margin-bottom: 0; /* Remove default margin */
+            display: inline-block; /* Make it inline with checkbox */
+            font-weight: normal; /* Normal weight for option text */
         }
 
         button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
@@ -58,7 +73,7 @@
             **Important:** Your API Key will be stored only in your browser's local storage for convenience.
             You are responsible for its security and usage quotas. Please ensure your API key has appropriate
             <a href="https://console.cloud.google.com/apis/credentials" target="_blank">HTTP referrer restrictions</a>
-            (e.g., `https://<your-github-pages-domain>/*` and/or `https://*.blogspot.com/*`).
+            (e.g., `https://<your-github-pages-domain>/*` and/or `http://127.0.0.1/*` if testing locally, and `https://*.blogspot.com/*`).
         </p>
 
         <label for="blogUrlOrIdInput">Blogger Blog URL or ID:</label>
@@ -68,6 +83,11 @@
         <div class="api-key-container">
             <input type="password" id="apiKeyInput" placeholder="Enter your Google API Key here">
             <button id="toggleApiKeyVisibility">Show Key</button>
+        </div>
+
+        <div class="remember-key-option">
+            <input type="checkbox" id="rememberApiKeyCheckbox">
+            <label for="rememberApiKeyCheckbox">Remember API Key</label>
         </div>
 
         <button id="getPostsButton">Get All Posts</button>
