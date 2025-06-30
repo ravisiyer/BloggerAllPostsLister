@@ -14,6 +14,7 @@ const postsList = document.getElementById('postsList');
 
 let gapiClientReady = false;
 let gapiCoreLoadedPromise = null;
+let initGapiTimeout = null; // New variable for debounce timeout
 
 // --- Utility Functions ---
 
@@ -33,6 +34,16 @@ function updateButtonStates() {
 
     clearApiKeyButton.disabled = isApiKeyEmpty;
     getPostsButton.disabled = isBlogInputEmpty || isApiKeyEmpty || !gapiClientReady;
+
+    // Disable Remember API Key checkbox if API key field is empty
+    rememberApiKeyCheckbox.disabled = isApiKeyEmpty;
+    // If the checkbox becomes disabled (because API key is empty), ensure it's unchecked
+    if (isApiKeyEmpty) {
+        rememberApiKeyCheckbox.checked = false;
+        // Also ensure it's cleared from storage immediately if the input becomes empty
+        localStorage.removeItem(BLOGGER_API_KEY_STORAGE_KEY);
+        localStorage.removeItem(BLOGGER_API_KEY_REMEMBER_FLAG);
+    }
 }
 
 function showLoading(show) {
@@ -55,14 +66,10 @@ function showLoading(show) {
     }
 }
 
+// saveApiKey is now only called by the checkbox listener
 function saveApiKey(key) {
-    if (rememberApiKeyCheckbox.checked) {
-        localStorage.setItem(BLOGGER_API_KEY_STORAGE_KEY, key);
-        localStorage.setItem(BLOGGER_API_KEY_REMEMBER_FLAG, 'true');
-    } else {
-        localStorage.removeItem(BLOGGER_API_KEY_STORAGE_KEY);
-        localStorage.removeItem(BLOGGER_API_KEY_REMEMBER_FLAG);
-    }
+    localStorage.setItem(BLOGGER_API_KEY_STORAGE_KEY, key);
+    localStorage.setItem(BLOGGER_API_KEY_REMEMBER_FLAG, 'true');
     updateButtonStates();
 }
 
@@ -77,11 +84,12 @@ function getSavedApiKey() {
     }
 }
 
+// --- MODIFIED: clearSavedApiKey no longer clears apiKeyInput.value ---
 function clearSavedApiKey() {
     localStorage.removeItem(BLOGGER_API_KEY_STORAGE_KEY);
     localStorage.removeItem(BLOGGER_API_KEY_REMEMBER_FLAG);
     rememberApiKeyCheckbox.checked = false;
-    apiKeyInput.value = '';
+    // We explicitly DO NOT clear apiKeyInput.value here
     updateButtonStates();
 }
 
@@ -98,6 +106,7 @@ window.onGapiLoaded = function() {
         const savedKey = getSavedApiKey();
         if (savedKey) {
             apiKeyInput.value = savedKey;
+            // Attempt init GAPI with saved key immediately
             initGapiClient(savedKey);
         } else {
             displayMessage('Please enter your Google API Key and Blog URL or ID to begin.', 'info');
@@ -110,8 +119,7 @@ window.onGapiLoaded = function() {
     });
 };
 
-// --- GAPI Client Initialization (requires API Key) ---
-
+// --- GAPI Client Initialization (no changes) ---
 async function initGapiClient(apiKeyToUse) {
     if (gapiClientReady && gapi.client.apiKey === apiKeyToUse) {
         console.log('gapi.client already initialized with this key.');
@@ -145,7 +153,7 @@ async function initGapiClient(apiKeyToUse) {
     }
 }
 
-// --- API Calls (no changes here) ---
+// --- API Calls (no changes) ---
 async function getBlogIdFromUrl(blogUrl, apiKey) {
     if (!gapiClientReady) {
         throw new Error("Google API Client is not initialized. Please ensure API Key is entered.");
@@ -214,20 +222,48 @@ toggleApiKeyVisibilityButton.addEventListener('click', () => {
     }
 });
 
-// --- NEW: Trigger initGapiClient when API key is entered/changed ---
+// --- MODIFIED: Debounce GAPI initialization on API key input ---
 apiKeyInput.addEventListener('input', async () => {
     updateButtonStates(); // Update button states immediately
 
-    // Only attempt to initialize GAPI if core is loaded and API key is not empty
-    if (gapiCoreLoadedPromise && apiKeyInput.value.trim().length > 0) {
-        await gapiCoreLoadedPromise; // Ensure core client is loaded
-        // Now attempt to initialize the gapi.client with the entered key
-        initGapiClient(apiKeyInput.value.trim()); // No 'await' here, let it run in background
+    if (initGapiTimeout) {
+        clearTimeout(initGapiTimeout); // Clear previous timeout
+    }
+
+    const apiKey = apiKeyInput.value.trim();
+
+    // Only attempt to initialize GAPI after a short pause in typing, and if key length is reasonable
+    if (gapiCoreLoadedPromise && apiKey.length >= 10) { // Require at least 10 chars to avoid very short inputs
+        initGapiTimeout = setTimeout(async () => {
+            await gapiCoreLoadedPromise; // Ensure core client is loaded
+            initGapiClient(apiKey); // No 'await' here, let it run in background
+        }, 500); // Wait 500ms after last keystroke
+    } else if (apiKey.length < 10 && gapiClientReady) {
+        // If key becomes too short (e.g., user backspaces), reset GAPI readiness
+        gapiClientReady = false;
+        updateButtonStates();
     }
 });
 
-blogUrlOrIdInput.addEventListener('input', updateButtonStates); // Only update button states for blog input
+blogUrlOrIdInput.addEventListener('input', updateButtonStates);
 
+// --- MODIFIED: Listener for Remember API Key checkbox for immediate save/clear ---
+rememberApiKeyCheckbox.addEventListener('change', () => {
+    const apiKey = apiKeyInput.value.trim();
+    if (rememberApiKeyCheckbox.checked) {
+        if (apiKey.length > 0) {
+            saveApiKey(apiKey); // Save the key
+            displayMessage('API Key saved to local storage.', 'success');
+        } else {
+            // Should be disabled, but a fallback if enabled somehow
+            rememberApiKeyCheckbox.checked = false; // Uncheck it again
+            displayMessage('Please enter an API Key before checking "Remember API Key".', 'error');
+        }
+    } else {
+        clearSavedApiKey(); // Clear key from local storage (but not the input field)
+        displayMessage('API Key removed from local storage.', 'info');
+    }
+});
 
 getPostsButton.addEventListener('click', async () => {
     console.log('[Get All Posts] button clicked. Current gapiClientReady:', gapiClientReady);
@@ -238,19 +274,15 @@ getPostsButton.addEventListener('click', async () => {
     postsList.innerHTML = '';
     messagesDiv.textContent = '';
 
-    // These checks should ideally be handled by button disabled state, but good as a fallback
     if (!blogUrlOrId || !apiKey) {
         displayMessage('Please ensure both Blog URL/ID and Google API Key are entered.');
         updateButtonStates();
         return;
     }
 
-    saveApiKey(apiKey);
-
     showLoading(true);
     try {
-        // Ensure GAPI client is ready. If not, it should have been initialized by apiKeyInput listener,
-        // or it will be re-attempted here.
+        // Ensure GAPI client is ready before proceeding with API calls
         if (!gapiClientReady) {
             if (!gapiCoreLoadedPromise) {
                 throw new Error("Google API client core script not yet loaded. Please wait.");
@@ -261,7 +293,6 @@ getPostsButton.addEventListener('click', async () => {
                 throw new Error("API Client could not be initialized with the provided key. Check console for details.");
             }
         }
-
 
         if (blogUrlOrId.length > 0 && !(blogUrlOrId.startsWith('http://') || blogUrlOrId.startsWith('https://')) && !/^\d+$/.test(blogUrlOrId)) {
             blogUrlOrId = 'https://' + blogUrlOrId;
@@ -309,17 +340,18 @@ clearApiKeyButton.addEventListener('click', () => {
             return;
         }
     }
-    clearSavedApiKey();
+    clearSavedApiKey(); // This clears from storage and unchecks checkbox
+    apiKeyInput.value = ''; // Explicitly clear the visual input field here for "Clear API Key" button
     apiKeyInput.type = 'password';
     toggleApiKeyVisibilityButton.textContent = 'Show Key';
-    gapiClientReady = false;
+    gapiClientReady = false; // Reset client status, will be re-initialized on next click
     displayMessage('API Key cleared from local storage. Please re-enter to use.', 'info');
     updateButtonStates();
 });
 
 // --- Initial DOM Load Logic ---
 document.addEventListener('DOMContentLoaded', () => {
-    const savedKey = getSavedApiKey();
+    const savedKey = getSavedApiKey(); // This calls getSavedApiKey which sets the checkbox state
     if (savedKey) {
         apiKeyInput.value = savedKey;
     } else {
@@ -328,5 +360,5 @@ document.addEventListener('DOMContentLoaded', () => {
     apiKeyInput.type = 'password';
     toggleApiKeyVisibilityButton.textContent = 'Show Key';
 
-    updateButtonStates();
+    updateButtonStates(); // Call this immediately on load to set initial button and checkbox states
 });
