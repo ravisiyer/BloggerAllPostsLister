@@ -1,7 +1,7 @@
 // app.js
 const BLOGGER_API_KEY_STORAGE_KEY = 'blogger_api_key';
 const BLOGGER_API_KEY_REMEMBER_FLAG = 'blogger_api_key_remember';
-const THEME_STORAGE_KEY = 'app_theme'; // NEW: Theme storage key
+const THEME_STORAGE_KEY = 'app_theme';
 
 const blogUrlOrIdInput = document.getElementById('blogUrlOrIdInput');
 const apiKeyInput = document.getElementById('apiKeyInput');
@@ -15,7 +15,12 @@ const loadingSpinner = document.getElementById('loadingSpinner');
 const postsList = document.getElementById('postsList');
 const totalPostsCountDiv = document.getElementById('totalPostsCount');
 const saveAsHtmlButton = document.getElementById('saveAsHtmlButton');
-const themeToggle = document.getElementById('themeToggle'); // NEW: Theme toggle button
+
+// NEW: Theme radio buttons and their container
+const themeSelector = document.getElementById('themeSelector');
+const themeDeviceRadio = document.getElementById('themeDevice');
+const themeLightRadio = document.getElementById('themeLight');
+const themeDarkRadio = document.getElementById('themeDark');
 
 let gapiClientReady = false;
 let gapiCoreLoadedPromise = null;
@@ -23,39 +28,55 @@ let currentApiKeyInClient = '';
 let blogIdFromQueryString = '';
 let apiKeyRememberedOnLoad = false;
 
-// --- Theme Functions (NEW) ---
+// --- Theme Functions ---
 
-function setTheme(theme) {
-    document.body.classList.remove('light-mode', 'dark-mode'); // Remove existing classes
-    if (theme === 'dark') {
-        document.body.classList.add('dark-mode');
-        themeToggle.textContent = 'Light Mode';
+// Applies the specified theme or system preference
+function applyTheme(themeChoice) {
+    document.body.classList.remove('light-mode', 'dark-mode'); // Clear existing theme classes
+
+    let effectiveTheme = themeChoice; // What we intend to set
+    let storedTheme = themeChoice; // What we intend to store
+
+    if (themeChoice === 'device') {
+        // If "device" is selected, don't store an explicit theme
+        localStorage.removeItem(THEME_STORAGE_KEY);
+        // Determine effective theme from system preference
+        effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     } else {
-        // Default is light, no specific light-mode class needed due to :root
-        themeToggle.textContent = 'Dark Mode';
+        // For 'light' or 'dark', store the explicit choice
+        localStorage.setItem(THEME_STORAGE_KEY, themeChoice);
     }
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
+
+    // Apply the effective theme class
+    if (effectiveTheme === 'dark') {
+        document.body.classList.add('dark-mode');
+    }
+    // No 'light-mode' class needed as :root handles light defaults
+
+    // Update radio button state based on the chosen 'themeChoice'
+    if (storedTheme === 'device') {
+        themeDeviceRadio.checked = true;
+    } else if (storedTheme === 'light') {
+        themeLightRadio.checked = true;
+    } else if (storedTheme === 'dark') {
+        themeDarkRadio.checked = true;
+    }
 }
 
-function getPreferredTheme() {
-    // 1. Check localStorage for user preference
+
+// Determines the theme to set on initial load or if 'device' is selected
+function getInitialThemeChoice() {
     const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
     if (storedTheme) {
-        return storedTheme;
+        return storedTheme; // Return stored preference (light or dark)
     }
-    // 2. Check system preference
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        return 'dark';
-    }
-    // 3. Default to light theme
-    return 'light';
+    return 'device'; // If nothing stored, default to 'device'
 }
 
 // --- Utility Functions ---
 
 function displayMessage(msg, type = 'error') {
     messagesDiv.textContent = msg;
-    // NEW: Add classes for styling, remove previous ones
     messagesDiv.classList.remove('error-message', 'info-message', 'success-message');
     if (type === 'error') {
         messagesDiv.classList.add('error-message');
@@ -76,7 +97,7 @@ function displayMessage(msg, type = 'error') {
         const timeoutId = setTimeout(() => {
             messagesDiv.textContent = '';
             messagesDiv.classList.remove('error-message', 'info-message', 'success-message');
-        }, 8000); // Show for 8 seconds
+        }, 8000);
         messagesDiv.dataset.timeoutId = timeoutId;
     }
 }
@@ -113,12 +134,19 @@ function showLoading(show) {
     toggleApiKeyVisibilityButton.disabled = show;
     rememberApiKeyCheckbox.disabled = show;
     saveAsHtmlButton.disabled = show;
-    themeToggle.disabled = show; // NEW: Disable theme toggle during loading
+
+    // NEW: Disable theme radio buttons during loading
+    if (show) {
+        themeSelector.classList.add('disabled');
+    } else {
+        themeSelector.classList.remove('disabled');
+    }
+
 
     if (show) {
         messagesDiv.textContent = 'Fetching posts...';
-        messagesDiv.classList.remove('error-message', 'info-message', 'success-message'); // Clear message classes
-        messagesDiv.classList.add('info-message'); // Add info class for loading message
+        messagesDiv.classList.remove('error-message', 'info-message', 'success-message');
+        messagesDiv.classList.add('info-message');
         if (messagesDiv.dataset.timeoutId) {
             clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
             delete messagesDiv.dataset.timeoutId;
@@ -126,7 +154,7 @@ function showLoading(show) {
         postsList.innerHTML = '';
         totalPostsCountDiv.textContent = '';
     } else {
-        if (messagesDiv.textContent === 'Fetching posts...') { // Only clear if it was the loading message
+        if (messagesDiv.textContent === 'Fetching posts...') {
             messagesDiv.textContent = '';
             messagesDiv.classList.remove('info-message');
         }
@@ -228,7 +256,7 @@ async function initGapiClient(apiKeyToUse) {
             delete messagesDiv.dataset.timeoutId;
         }
 
-        displayMessage('Initializing API client...', 'info'); // Display before actual init call
+        displayMessage('Initializing API client...', 'info');
         await gapi.client.init({
             apiKey: apiKeyToUse,
             discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/blogger/v3/rest"],
@@ -306,10 +334,9 @@ async function listAllPosts(blogId, apiKey, posts = [], pageToken = undefined) {
 
 // --- Event Handlers ---
 
-themeToggle.addEventListener('click', () => { // NEW: Theme toggle click handler
-    const currentTheme = document.body.classList.contains('dark-mode') ? 'dark' : 'light';
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    setTheme(newTheme);
+// NEW: Event listener for theme radio buttons
+themeSelector.addEventListener('change', (event) => {
+    applyTheme(event.target.value);
 });
 
 toggleApiKeyVisibilityButton.addEventListener('click', () => {
@@ -381,7 +408,7 @@ getPostsButton.addEventListener('click', async () => {
     postsList.innerHTML = '';
     totalPostsCountDiv.textContent = '';
     messagesDiv.textContent = '';
-    messagesDiv.classList.remove('error-message', 'info-message', 'success-message'); // Clear all message classes
+    messagesDiv.classList.remove('error-message', 'info-message', 'success-message');
     if (messagesDiv.dataset.timeoutId) {
         clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
         delete messagesDiv.dataset.timeoutId;
@@ -519,14 +546,10 @@ saveAsHtmlButton.addEventListener('click', () => {
         blogIdentifierForFile = 'unknown-blog';
     }
 
-    // Capture current theme styles for the saved HTML
-    const currentThemeClass = document.body.classList.contains('dark-mode') ? 'dark-mode' : '';
-    const isDarkMode = currentThemeClass === 'dark-mode';
-
-    // Embed current theme's colors directly into the saved HTML for fidelity
-    // Note: This duplicates some CSS, but ensures standalone file accuracy.
+    // This CSS for the saved HTML remains the same as before, respecting device theme
     const savedHtmlThemeStyles = `
         <style>
+            /* Base styles for the saved HTML */
             body { font-family: sans-serif; margin: 20px; line-height: 1.5; }
             ul { list-style: none; padding: 0; margin: 0; }
             .post-month-header {
@@ -552,31 +575,70 @@ saveAsHtmlButton.addEventListener('click', () => {
                 font-weight: bold;
                 margin-right: 3px;
             }
-            /* Specific colors for the saved file based on active theme */
+
+            /* Light theme defaults (will be applied by default) */
             body {
-                background-color: ${isDarkMode ? '#1a1a1a' : '#ffffff'};
-                color: ${isDarkMode ? '#e0e0e0' : '#333333'};
+                background-color: #ffffff;
+                color: #333333;
             }
             .post-month-header {
-                background-color: ${isDarkMode ? '#003e4c' : '#e0f7fa'};
-                color: ${isDarkMode ? '#e0e0e0' : '#333333'};
+                background-color: #e0f7fa;
+                color: #333333;
             }
             .post-item a {
-                color: ${isDarkMode ? '#92e0ff' : '#0056b3'};
+                color: #0056b3;
+            }
+            .generated-header { /* Style for the header message in saved file */
+                border: 1px solid #eee;
+                background-color: #f9f9f9;
+                color: #333;
+            }
+            .generated-header a {
+                color: #0056b3;
+            }
+            .total-posts-count {
+                color: #007bff;
+            }
+
+
+            /* Dark mode overrides using prefers-color-scheme */
+            @media (prefers-color-scheme: dark) {
+                body {
+                    background-color: #1a1a1a;
+                    color: #e0e0e0;
+                }
+                .post-month-header {
+                    background-color: #003e4c;
+                    color: #e0e0e0;
+                }
+                .post-item a {
+                    color: #92e0ff;
+                }
+                .generated-header {
+                    border: 1px solid #444444;
+                    background-color: #2a2a2a;
+                    color: #e0e0e0;
+                }
+                .generated-header a {
+                    color: #92e0ff;
+                }
+                .total-posts-count {
+                    color: #92e0ff;
+                }
             }
         </style>
     `;
 
     const headerHtml = `
-        <div style="font-family: sans-serif; margin-bottom: 20px; padding: 10px; border: 1px solid ${isDarkMode ? '#444' : '#eee'}; background-color: ${isDarkMode ? '#2a2a2a' : '#f9f9f9'}; border-radius: 5px; color: ${isDarkMode ? '#e0e0e0' : '#333'};">
-            <p style="margin: 0; font-size: 0.9em; color: inherit;">This list of blog posts was generated on **${dateTimeString}** using the Blogger All Posts Lister.</p>
-            <p style="margin: 5px 0 0 0; font-size: 0.9em; color: inherit;">Source Blog: <a href="${blogUrlOrIdInput.value.trim()}" target="_blank" rel="noopener noreferrer" style="color: ${isDarkMode ? '#92e0ff' : '#0056b3'};">${blogUrlOrIdInput.value.trim()}</a></p>
+        <div class="generated-header" style="margin-bottom: 20px; padding: 10px; border-radius: 5px;">
+            <p style="margin: 0; font-size: 0.9em;">This list of blog posts was generated on **${dateTimeString}** using the Blogger All Posts Lister.</p>
+            <p style="margin: 5px 0 0 0; font-size: 0.9em;">Source Blog: <a href="${blogUrlOrIdInput.value.trim()}" target="_blank" rel="noopener noreferrer">${blogUrlOrIdInput.value.trim()}</a></p>
         </div>
     `;
 
     const listHtml = `
-        <h2 style="font-family: sans-serif; color: ${isDarkMode ? '#e0e0e0' : '#333'};">Posts</h2>
-        <div style="font-family: sans-serif; font-size: 1.1em; font-weight: bold; margin-bottom: 10px; color: ${isDarkMode ? '#92e0ff' : '#007bff'};">${totalPostsCountDiv.textContent}</div>
+        <h2 style="font-family: sans-serif;">Posts</h2>
+        <div class="total-posts-count" style="font-size: 1.1em; font-weight: bold; margin-bottom: 10px;">${totalPostsCountDiv.textContent}</div>
         <ul style="list-style: none; padding: 0; margin: 0;">
             ${postsList.innerHTML}
         </ul>
@@ -591,7 +653,7 @@ saveAsHtmlButton.addEventListener('click', () => {
             <title>Blogger Posts - ${blogUrlOrIdInput.value.trim()} - ${formattedDateYYYYMMDD}</title>
             ${savedHtmlThemeStyles}
         </head>
-        <body class="${currentThemeClass}">
+        <body>
             ${headerHtml}
             ${listHtml}
         </body>
@@ -615,8 +677,8 @@ saveAsHtmlButton.addEventListener('click', () => {
 
 // --- Initial DOM Load Logic ---
 document.addEventListener('DOMContentLoaded', () => {
-    // NEW: Apply preferred theme immediately on DOM load
-    setTheme(getPreferredTheme());
+    // Apply initial theme based on stored preference or device setting
+    applyTheme(getInitialThemeChoice());
 
     blogIdFromQueryString = getBlogIdFromQuery();
 
@@ -632,9 +694,11 @@ document.addEventListener('DOMContentLoaded', () => {
     updateButtonStates();
 });
 
-// NEW: Listen for system theme changes and update if no specific user preference is set
+// NEW: Listener for system theme changes.
+// This only applies if the user has selected 'device' theme.
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-    if (!localStorage.getItem(THEME_STORAGE_KEY)) { // Only react to system changes if user hasn't manually set a theme
-        setTheme(event.matches ? 'dark' : 'light');
+    // If the currently applied theme is 'device' (i.e., localStorage is empty)
+    if (!localStorage.getItem(THEME_STORAGE_KEY)) {
+        applyTheme('device'); // Re-apply 'device' theme to reflect system change
     }
 });

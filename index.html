@@ -50,6 +50,11 @@
         body, #controls, input, button, #messages, .post-month-header, #totalPostsCount {
             transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
         }
+        /* NEW: Add transition for theme selectors */
+        #themeSelector input[type="radio"] + label {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
 
         body {
             font-family: sans-serif;
@@ -152,9 +157,10 @@
         }
 
         #messages { margin-top: 15px; }
-        #messages[style*="color: red"] { color: var(--message-error-color) !important; }
-        #messages[style*="color: blue"] { color: var(--message-info-color) !important; }
-        #messages[style*="color: green"] { color: var(--message-success-color) !important; }
+        /* These styles will apply the correct colors via the classes set in JS */
+        #messages.error-message { color: var(--message-error-color); }
+        #messages.info-message { color: var(--message-info-color); }
+        #messages.success-message { color: var(--message-success-color); }
 
         #postListContainer { margin-top: 20px; }
         #postsList {
@@ -199,30 +205,72 @@
 
         .loading-spinner { display: none; margin-top: 20px; font-style: italic; color: var(--text-color); }
 
-        /* NEW: Theme toggle button styling */
-        #themeToggle {
-            float: right; /* Position to the right of the heading */
+        /* NEW: Theme selector styling (radio buttons) */
+        #themeSelector {
+            float: right;
             margin-top: -35px; /* Adjust vertical position */
-            background-color: #6c757d; /* Neutral grey */
-            color: white;
-            padding: 8px 12px;
+            display: flex; /* Arrange radio buttons horizontally */
+            align-items: center;
             font-size: 0.9em;
-            border-radius: 4px;
+            background-color: var(--control-bg); /* Match controls background */
+            border: 1px solid var(--border-color); /* Match controls border */
+            border-radius: 5px;
+            padding: 5px;
         }
-        #themeToggle:hover {
-            background-color: #5a6268;
+        #themeSelector label {
+            font-weight: normal; /* Override bold label */
+            margin-bottom: 0; /* Remove default label margin */
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 3px;
+            white-space: nowrap; /* Prevent wrapping */
+            background-color: transparent; /* Default for unselected */
+            color: var(--text-color);
+            border: 1px solid transparent; /* Invisible border for consistency */
         }
-
-        /* Ensure message colors apply correctly */
-        #messages.error-message { color: var(--message-error-color); }
-        #messages.info-message { color: var(--message-info-color); }
-        #messages.success-message { color: var(--message-success-color); }
+        #themeSelector input[type="radio"] {
+            display: none; /* Hide the actual radio button */
+        }
+        #themeSelector input[type="radio"]:checked + label {
+            background-color: var(--button-primary-bg); /* Highlight checked label */
+            color: white;
+            border-color: var(--button-primary-bg);
+        }
+        #themeSelector input[type="radio"]:checked + label:hover {
+            background-color: var(--button-primary-hover-bg); /* Darker on hover for checked */
+            border-color: var(--button-primary-hover-bg);
+        }
+        #themeSelector label:hover:not(#themeSelector input[type="radio"]:checked + label) {
+            background-color: var(--border-color); /* Light hover for unchecked */
+        }
+        /* Disabled styles for theme selector */
+        #themeSelector.disabled label {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none; /* Prevent click events */
+        }
+        #themeSelector.disabled input[type="radio"]:checked + label {
+            background-color: var(--button-primary-bg); /* Maintain selected color */
+            border-color: var(--button-primary-bg);
+            opacity: 0.5;
+        }
 
     </style>
 </head>
 <body>
     <h1>Blogger All Posts Lister</h1>
-    <button id="themeToggle">Toggle Theme</button> <div id="controls">
+    <div id="themeSelector">
+        <input type="radio" id="themeDevice" name="theme" value="device">
+        <label for="themeDevice">Device</label>
+
+        <input type="radio" id="themeLight" name="theme" value="light">
+        <label for="themeLight">Light</label>
+
+        <input type="radio" id="themeDark" name="theme" value="dark">
+        <label for="themeDark">Dark</label>
+    </div>
+
+    <div id="controls">
         <p>This tool helps you list all posts from any public Blogger blog using its URL or ID, and your own Google API Key.</p>
         <p>
             **Important:** Your API Key will be stored only in your browser's local storage for convenience.
