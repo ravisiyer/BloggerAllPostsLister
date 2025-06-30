@@ -12,11 +12,13 @@ const clearApiKeyButton = document.getElementById('clearApiKeyButton');
 const messagesDiv = document.getElementById('messages');
 const loadingSpinner = document.getElementById('loadingSpinner');
 const postsList = document.getElementById('postsList');
-const totalPostsCountDiv = document.getElementById('totalPostsCount'); // NEW
+const totalPostsCountDiv = document.getElementById('totalPostsCount');
 
 let gapiClientReady = false;
 let gapiCoreLoadedPromise = null;
 let currentApiKeyInClient = '';
+let blogIdFromQueryString = ''; // NEW: To store blog ID from URL query
+let apiKeyRememberedOnLoad = false; // NEW: Flag to check if API key was remembered at start
 
 // --- Utility Functions ---
 
@@ -75,7 +77,6 @@ function showLoading(show) {
             clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
             delete messagesDiv.dataset.timeoutId;
         }
-        // Clear previous posts and count when loading new ones
         postsList.innerHTML = '';
         totalPostsCountDiv.textContent = '';
     } else {
@@ -110,18 +111,45 @@ function clearSavedApiKey() {
     updateButtonStates();
 }
 
+// NEW: Function to check query parameters and populate blog ID
+function getBlogIdFromQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const blogParam = params.get('blog');
+    if (blogParam) {
+        blogUrlOrIdInput.value = blogParam;
+        return blogParam;
+    }
+    return null;
+}
+
+// NEW: Function to auto-trigger Get All Posts
+async function autoGetPostsIfReady() {
+    // Only auto-trigger if an API key was remembered and blog ID was from query string
+    if (apiKeyRememberedOnLoad && blogIdFromQueryString && gapiClientReady) {
+        console.log("Auto-triggering Get All Posts...");
+        // Call the click handler logic directly
+        await getPostsButton.click();
+    }
+}
+
 window.onGapiLoaded = function() {
     console.log('Google API client script loaded. Now loading the core client module...');
     gapiCoreLoadedPromise = new Promise(resolve => {
         gapi.load('client', resolve);
     });
 
-    gapiCoreLoadedPromise.then(() => {
+    gapiCoreLoadedPromise.then(async () => { // Made this async to await initGapiClient
         console.log('gapi.client core module loaded.');
         const savedKey = getSavedApiKey();
         if (savedKey) {
             apiKeyInput.value = savedKey;
-            initGapiClient(savedKey);
+            apiKeyRememberedOnLoad = true; // Set flag
+            // Initialize GAPI with saved key immediately
+            await initGapiClient(savedKey); // Await this
+            // After successful GAPI init with remembered key, attempt auto-get posts
+            if (gapiClientReady && blogIdFromQueryString) {
+                autoGetPostsIfReady();
+            }
         } else {
             displayMessage('Please enter your Google API Key and Blog URL or ID to begin.', 'info');
             updateButtonStates();
@@ -300,9 +328,9 @@ getPostsButton.addEventListener('click', async () => {
     let blogUrlOrId = blogUrlOrIdInput.value.trim();
     const apiKey = apiKeyInput.value.trim();
 
-    postsList.innerHTML = ''; // Clear previous posts
-    totalPostsCountDiv.textContent = ''; // Clear previous total count
-    messagesDiv.textContent = ''; // Clear messages before starting
+    postsList.innerHTML = '';
+    totalPostsCountDiv.textContent = '';
+    messagesDiv.textContent = '';
     if (messagesDiv.dataset.timeoutId) {
         clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
         delete messagesDiv.dataset.timeoutId;
@@ -320,7 +348,7 @@ getPostsButton.addEventListener('click', async () => {
         return;
     }
 
-    showLoading(true); // showLoading now also clears previous posts and count
+    showLoading(true);
 
     try {
         if (blogUrlOrId.length > 0 && !(blogUrlOrId.startsWith('http://') || blogUrlOrId.startsWith('https://')) && !/^\d+$/.test(blogUrlOrId)) {
@@ -338,13 +366,11 @@ getPostsButton.addEventListener('click', async () => {
 
         const allPosts = await listAllPosts(blogId, apiKey);
 
-        // --- NEW RENDERING LOGIC ---
         if (allPosts.length === 0) {
             postsList.innerHTML = '<li>No posts found for this blog, or the provided Blog ID/URL is invalid or has no posts.</li>';
             displayMessage('No posts found for the provided Blog ID/URL.', 'info');
             totalPostsCountDiv.textContent = 'Total Posts: 0';
         } else {
-            // Sort posts by published date, newest first
             allPosts.sort((a, b) => new Date(b.published) - new Date(a.published));
 
             totalPostsCountDiv.textContent = `Total Posts: ${allPosts.length}`;
@@ -359,7 +385,6 @@ getPostsButton.addEventListener('click', async () => {
                 const day = postDate.getDate();
                 const monthYear = `${month} ${year}`;
 
-                // Check if we need to add a new month header
                 if (monthYear !== currentMonthYear) {
                     currentMonthYear = monthYear;
                     const headerItem = document.createElement('li');
@@ -370,7 +395,6 @@ getPostsButton.addEventListener('click', async () => {
 
                 const listItem = document.createElement('li');
                 listItem.className = 'post-item';
-                // Format: Day: Post title
                 listItem.innerHTML = `<strong>${day}:</strong> <a href="${post.url}" target="_blank">${post.title}</a>`;
                 postsList.appendChild(listItem);
             });
@@ -379,7 +403,7 @@ getPostsButton.addEventListener('click', async () => {
     } catch (error) {
         displayMessage(`Error: ${error.message}`, 'error');
         console.error('API Error:', error);
-        totalPostsCountDiv.textContent = 'Total Posts: 0'; // Set count to 0 on error
+        totalPostsCountDiv.textContent = 'Total Posts: 0';
     } finally {
         showLoading(false);
     }
@@ -403,15 +427,18 @@ clearApiKeyButton.addEventListener('click', () => {
     toggleApiKeyVisibilityButton.textContent = 'Show Key';
     gapiClientReady = false;
     currentApiKeyInClient = '';
-    postsList.innerHTML = ''; // Clear posts on API key clear
-    totalPostsCountDiv.textContent = ''; // Clear total count on API key clear
+    postsList.innerHTML = '';
+    totalPostsCountDiv.textContent = '';
     displayMessage('API Key cleared from local storage and input field. Please re-enter to use.', 'info');
     updateButtonStates();
 });
 
 // --- Initial DOM Load Logic ---
 document.addEventListener('DOMContentLoaded', () => {
-    const savedKey = getSavedApiKey();
+    // NEW: Attempt to get blog ID from query string first
+    blogIdFromQueryString = getBlogIdFromQuery();
+
+    const savedKey = getSavedApiKey(); // This sets `rememberApiKeyCheckbox.checked`
     if (savedKey) {
         apiKeyInput.value = savedKey;
     } else {
