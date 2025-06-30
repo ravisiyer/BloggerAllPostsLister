@@ -62,19 +62,19 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
+            margin-right: 10px; /* Added margin for buttons */
+            margin-bottom: 10px; /* Added margin for stacking */
         }
         button:hover {
             background-color: #0056b3;
         }
 
-        /* --- NEW CSS FOR DISABLED BUTTONS --- */
         button:disabled,
         button[disabled] {
-            opacity: 0.5; /* Make it semi-transparent */
-            cursor: not-allowed; /* Change cursor to indicate it's not clickable */
-            box-shadow: none; /* Remove any shadow for disabled state */
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
         }
-        /* Optionally, for specific buttons like Clear API Key */
         #clearApiKeyButton:disabled {
             background-color: #dc3545; /* Keep original color */
             opacity: 0.5;
@@ -116,6 +116,7 @@
             <label for="rememberApiKeyCheckbox">Remember API Key</label>
         </div>
 
+        <button id="initializeApiClientButton" style="background-color: #28a745;">Initialize API Client</button>
         <button id="getPostsButton">Get All Posts</button>
         <button id="clearApiKeyButton" style="background-color: #dc3545;">Clear API Key</button>
         <div id="messages"></div>
