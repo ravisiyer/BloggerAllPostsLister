@@ -59,7 +59,7 @@
             background-color: #007bff;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 4个体;
             cursor: pointer;
             font-size: 16px;
             margin-right: 10px;
@@ -84,7 +84,7 @@
 
         #messages { margin-top: 15px; color: red; }
         #postListContainer { margin-top: 20px; }
-        /* --- NEW CSS FOR LIST DISPLAY --- */
+        /* --- CSS FOR LIST DISPLAY --- */
         #postsList {
             list-style: none; /* Remove default bullet points */
             padding: 0; /* Remove default padding */
@@ -133,6 +133,15 @@
         }
 
         .loading-spinner { display: none; margin-top: 20px; font-style: italic; color: #555; }
+
+        /* Styling for the save button */
+        #saveAsHtmlButton {
+            background-color: #6f42c1; /* Purple color */
+            margin-left: 10px;
+        }
+        #saveAsHtmlButton:hover {
+            background-color: #5b369c;
+        }
     </style>
 </head>
 <body>
@@ -169,8 +178,8 @@
     </div>
 
     <div id="postListContainer">
-        <h2>Posts</h2>
-        <div id="totalPostsCount"></div> <ul id="postsList">
+        <h2>Posts <button id="saveAsHtmlButton" disabled>Save as HTML</button></h2> <div id="totalPostsCount"></div>
+        <ul id="postsList">
             </ul>
     </div>
 

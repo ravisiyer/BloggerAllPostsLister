@@ -13,12 +13,13 @@ const messagesDiv = document.getElementById('messages');
 const loadingSpinner = document.getElementById('loadingSpinner');
 const postsList = document.getElementById('postsList');
 const totalPostsCountDiv = document.getElementById('totalPostsCount');
+const saveAsHtmlButton = document.getElementById('saveAsHtmlButton'); // NEW
 
 let gapiClientReady = false;
 let gapiCoreLoadedPromise = null;
 let currentApiKeyInClient = '';
-let blogIdFromQueryString = ''; // NEW: To store blog ID from URL query
-let apiKeyRememberedOnLoad = false; // NEW: Flag to check if API key was remembered at start
+let blogIdFromQueryString = '';
+let apiKeyRememberedOnLoad = false;
 
 // --- Utility Functions ---
 
@@ -45,8 +46,9 @@ function updateButtonStates() {
     const isApiKeyEmpty = apiKeyInput.value.trim().length === 0;
     const isBlogInputEmpty = blogUrlOrIdInput.value.trim().length === 0;
     const isCurrentApiKeyInClient = apiKeyInput.value.trim() === currentApiKeyInClient && gapiClientReady;
+    const hasPostsDisplayed = postsList.children.length > 0; // NEW: Check if there are posts to save
 
-    console.log(`[updateButtonStates] API Empty: ${isApiKeyEmpty}, Blog Empty: ${isBlogInputEmpty}, GAPI Ready: ${gapiClientReady}, Key Matches Client: ${isCurrentApiKeyInClient}`);
+    console.log(`[updateButtonStates] API Empty: ${isApiKeyEmpty}, Blog Empty: ${isBlogInputEmpty}, GAPI Ready: ${gapiClientReady}, Key Matches Client: ${isCurrentApiKeyInClient}, Has Posts: ${hasPostsDisplayed}`);
 
     clearApiKeyButton.disabled = isApiKeyEmpty;
     getPostsButton.disabled = isBlogInputEmpty || isApiKeyEmpty || !gapiClientReady || !isCurrentApiKeyInClient;
@@ -58,6 +60,9 @@ function updateButtonStates() {
         localStorage.removeItem(BLOGGER_API_KEY_STORAGE_KEY);
         localStorage.removeItem(BLOGGER_API_KEY_REMEMBER_FLAG);
     }
+
+    // NEW: Enable Save as HTML button only if posts are displayed
+    saveAsHtmlButton.disabled = !hasPostsDisplayed;
 }
 
 function showLoading(show) {
@@ -69,6 +74,7 @@ function showLoading(show) {
     apiKeyInput.disabled = show;
     toggleApiKeyVisibilityButton.disabled = show;
     rememberApiKeyCheckbox.disabled = show;
+    saveAsHtmlButton.disabled = show; // Disable save button during loading
 
     if (show) {
         messagesDiv.textContent = 'Fetching posts...';
@@ -111,7 +117,6 @@ function clearSavedApiKey() {
     updateButtonStates();
 }
 
-// NEW: Function to check query parameters and populate blog ID
 function getBlogIdFromQuery() {
     const params = new URLSearchParams(window.location.search);
     const blogParam = params.get('blog');
@@ -122,12 +127,10 @@ function getBlogIdFromQuery() {
     return null;
 }
 
-// NEW: Function to auto-trigger Get All Posts
 async function autoGetPostsIfReady() {
-    // Only auto-trigger if an API key was remembered and blog ID was from query string
     if (apiKeyRememberedOnLoad && blogIdFromQueryString && gapiClientReady) {
         console.log("Auto-triggering Get All Posts...");
-        // Call the click handler logic directly
+        // Directly call the getPostsButton's click handler logic
         await getPostsButton.click();
     }
 }
@@ -138,15 +141,13 @@ window.onGapiLoaded = function() {
         gapi.load('client', resolve);
     });
 
-    gapiCoreLoadedPromise.then(async () => { // Made this async to await initGapiClient
+    gapiCoreLoadedPromise.then(async () => {
         console.log('gapi.client core module loaded.');
         const savedKey = getSavedApiKey();
         if (savedKey) {
             apiKeyInput.value = savedKey;
-            apiKeyRememberedOnLoad = true; // Set flag
-            // Initialize GAPI with saved key immediately
-            await initGapiClient(savedKey); // Await this
-            // After successful GAPI init with remembered key, attempt auto-get posts
+            apiKeyRememberedOnLoad = true;
+            await initGapiClient(savedKey);
             if (gapiClientReady && blogIdFromQueryString) {
                 autoGetPostsIfReady();
             }
@@ -433,12 +434,107 @@ clearApiKeyButton.addEventListener('click', () => {
     updateButtonStates();
 });
 
+// NEW: Save as HTML button functionality
+saveAsHtmlButton.addEventListener('click', () => {
+    if (postsList.children.length === 0) {
+        displayMessage('No posts to save. Please fetch posts first.', 'info');
+        return;
+    }
+
+    const now = new Date();
+    const dateTimeString = now.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+    });
+    const formattedDate = now.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
+    const blogIdentifier = blogUrlOrIdInput.value.trim().replace(/[^a-zA-Z0-9-]/g, '_').substring(0, 50); // Basic slug from URL/ID
+
+    const headerHtml = `
+        <div style="font-family: sans-serif; margin-bottom: 20px; padding: 10px; border: 1px solid #eee; background-color: #f9f9f9; border-radius: 5px;">
+            <p style="margin: 0; font-size: 0.9em; color: #555;">This list of blog posts was generated on **${dateTimeString}** using the Blogger All Posts Lister.</p>
+            <p style="margin: 5px 0 0 0; font-size: 0.9em; color: #555;">Source Blog: <a href="${blogUrlOrIdInput.value.trim()}" target="_blank" rel="noopener noreferrer">${blogUrlOrIdInput.value.trim()}</a></p>
+        </div>
+    `;
+
+    // Reconstruct the exact HTML of the list as currently displayed
+    const listHtml = `
+        <h2 style="font-family: sans-serif; color: #333;">Posts</h2>
+        <div style="font-family: sans-serif; font-size: 1.1em; font-weight: bold; margin-bottom: 10px; color: #007bff;">${totalPostsCountDiv.textContent}</div>
+        <ul style="list-style: none; padding: 0; margin: 0;">
+            ${postsList.innerHTML}
+        </ul>
+    `;
+
+    const fullHtmlContent = `
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Blogger Posts - ${blogUrlOrIdInput.value.trim().substring(0, 50)} - ${formattedDate}</title>
+            <style>
+                body { font-family: sans-serif; margin: 20px; line-height: 1.5; }
+                ul { list-style: none; padding: 0; margin: 0; }
+                .post-month-header {
+                    font-size: 1.1em;
+                    font-weight: bold;
+                    margin-top: 15px;
+                    margin-bottom: 5px;
+                    color: #333;
+                    background-color: #e0f7fa;
+                    padding: 5px 10px;
+                    border-radius: 3px;
+                }
+                .post-item {
+                    margin-bottom: 2px;
+                    font-size: 0.95em;
+                    line-height: 1.3;
+                }
+                .post-item a {
+                    text-decoration: none;
+                    color: #0056b3;
+                }
+                .post-item a:hover {
+                    text-decoration: underline;
+                }
+                .post-item strong {
+                    font-weight: bold;
+                    margin-right: 3px;
+                }
+            </style>
+        </head>
+        <body>
+            ${headerHtml}
+            ${listHtml}
+        </body>
+        </html>
+    `;
+
+    const blob = new Blob([fullHtmlContent], { type: 'text/html;charset=utf-8' });
+    const fileName = `Blogger_Posts_${blogIdentifier}_${formattedDate}.html`;
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href); // Clean up the URL object
+
+    displayMessage(`List saved as "${fileName}"`, 'success');
+});
+
+
 // --- Initial DOM Load Logic ---
 document.addEventListener('DOMContentLoaded', () => {
-    // NEW: Attempt to get blog ID from query string first
     blogIdFromQueryString = getBlogIdFromQuery();
 
-    const savedKey = getSavedApiKey(); // This sets `rememberApiKeyCheckbox.checked`
+    const savedKey = getSavedApiKey();
     if (savedKey) {
         apiKeyInput.value = savedKey;
     } else {
