@@ -38,24 +38,50 @@
         .api-key-container button:hover {
             background-color: #5a6268;
         }
-        .remember-key-option { /* New style for the checkbox container */
+        .remember-key-option {
             margin-bottom: 15px;
             display: flex;
             align-items: center;
         }
-        .remember-key-option input { /* Style for checkbox itself */
-            width: auto; /* Checkbox should not take full width */
+        .remember-key-option input {
+            width: auto;
             margin-right: 8px;
             margin-bottom: 0;
         }
-        .remember-key-option label { /* Style for checkbox label */
-            margin-bottom: 0; /* Remove default margin */
-            display: inline-block; /* Make it inline with checkbox */
-            font-weight: normal; /* Normal weight for option text */
+        .remember-key-option label {
+            margin-bottom: 0;
+            display: inline-block;
+            font-weight: normal;
         }
 
-        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }
-        button:hover { background-color: #0056b3; }
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        /* --- NEW CSS FOR DISABLED BUTTONS --- */
+        button:disabled,
+        button[disabled] {
+            opacity: 0.5; /* Make it semi-transparent */
+            cursor: not-allowed; /* Change cursor to indicate it's not clickable */
+            box-shadow: none; /* Remove any shadow for disabled state */
+        }
+        /* Optionally, for specific buttons like Clear API Key */
+        #clearApiKeyButton:disabled {
+            background-color: #dc3545; /* Keep original color */
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+
         #messages { margin-top: 15px; color: red; }
         #postListContainer { margin-top: 20px; }
         .post-item { border: 1px solid #eee; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
