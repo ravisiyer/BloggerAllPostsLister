@@ -62,8 +62,8 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
-            margin-right: 10px; /* Added margin for buttons */
-            margin-bottom: 10px; /* Added margin for stacking */
+            margin-right: 10px;
+            margin-bottom: 10px;
         }
         button:hover {
             background-color: #0056b3;
@@ -84,9 +84,54 @@
 
         #messages { margin-top: 15px; color: red; }
         #postListContainer { margin-top: 20px; }
-        .post-item { border: 1px solid #eee; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
-        .post-item h3 { margin-top: 0; color: #333; }
-        .post-item p { font-size: 0.9em; color: #666; }
+        /* --- NEW CSS FOR LIST DISPLAY --- */
+        #postsList {
+            list-style: none; /* Remove default bullet points */
+            padding: 0; /* Remove default padding */
+            margin: 0; /* Remove default margin */
+        }
+        .post-month-header {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-top: 15px; /* Space above month header */
+            margin-bottom: 5px; /* Space below month header */
+            color: #333;
+            background-color: #e0f7fa; /* Light blue background for header */
+            padding: 5px 10px;
+            border-radius: 3px;
+        }
+        .post-item {
+            border: none; /* Remove border from each item */
+            padding: 0; /* Remove padding from each item */
+            margin-bottom: 2px; /* Reduce space between items */
+            font-size: 0.95em; /* Slightly smaller font for compactness */
+            line-height: 1.3; /* Adjust line height for compactness */
+        }
+        .post-item a {
+            text-decoration: none; /* Remove underline from links */
+            color: #0056b3; /* Darker blue for links */
+        }
+        .post-item a:hover {
+            text-decoration: underline; /* Add underline on hover */
+        }
+        .post-item p {
+            display: inline; /* Keep p tag inline with title */
+            margin: 0; /* Remove margins from p tag */
+            color: #222; /* Darker text color */
+        }
+        /* Ensure Day part is bold */
+        .post-item strong {
+            font-weight: bold;
+            margin-right: 3px; /* Small space after day */
+        }
+        /* Styling for the total posts count */
+        #totalPostsCount {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #007bff;
+        }
+
         .loading-spinner { display: none; margin-top: 20px; font-style: italic; color: #555; }
     </style>
 </head>
@@ -125,7 +170,7 @@
 
     <div id="postListContainer">
         <h2>Posts</h2>
-        <ul id="postsList">
+        <div id="totalPostsCount"></div> <ul id="postsList">
             </ul>
     </div>
 

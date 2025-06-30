@@ -12,6 +12,7 @@ const clearApiKeyButton = document.getElementById('clearApiKeyButton');
 const messagesDiv = document.getElementById('messages');
 const loadingSpinner = document.getElementById('loadingSpinner');
 const postsList = document.getElementById('postsList');
+const totalPostsCountDiv = document.getElementById('totalPostsCount'); // NEW
 
 let gapiClientReady = false;
 let gapiCoreLoadedPromise = null;
@@ -19,12 +20,10 @@ let currentApiKeyInClient = '';
 
 // --- Utility Functions ---
 
-// --- MODIFIED: displayMessage function ---
 function displayMessage(msg, type = 'error') {
     messagesDiv.textContent = msg;
     messagesDiv.style.color = type === 'error' ? 'red' : (type === 'success' ? 'green' : 'blue');
 
-    // Clear any previous timeout to prevent premature clearing
     if (messagesDiv.dataset.timeoutId) {
         clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
         delete messagesDiv.dataset.timeoutId;
@@ -32,18 +31,12 @@ function displayMessage(msg, type = 'error') {
 
     if (type === 'error') {
         // Error messages persist until a new action
-        // No setTimeout here
     } else if (type === 'info' || type === 'success') {
-        // Informational and success messages last longer
         const timeoutId = setTimeout(() => {
             messagesDiv.textContent = '';
         }, 8000); // Show for 8 seconds
-        messagesDiv.dataset.timeoutId = timeoutId; // Store timeout ID to clear it later if needed
+        messagesDiv.dataset.timeoutId = timeoutId;
     }
-    // 'persistent' type from previous versions is now effectively handled by not having a timeout
-    // if you explicitly wanted a message to stay, you'd call displayMessage without a type or with 'error' and then manage its clear manually.
-    // For clarity, I'm now explicitly setting behavior for 'error', 'info', 'success'.
-    // If you need a truly persistent, non-error message, we can add a specific 'sticky' type.
 }
 
 function updateButtonStates() {
@@ -78,14 +71,16 @@ function showLoading(show) {
     if (show) {
         messagesDiv.textContent = 'Fetching posts...';
         messagesDiv.style.color = 'blue';
-        // When starting a new loading action, clear previous messages immediately
         if (messagesDiv.dataset.timeoutId) {
             clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
             delete messagesDiv.dataset.timeoutId;
         }
+        // Clear previous posts and count when loading new ones
+        postsList.innerHTML = '';
+        totalPostsCountDiv.textContent = '';
     } else {
         if (messagesDiv.textContent === 'Fetching posts...') {
-            messagesDiv.textContent = ''; // Clear loading message if no other message has replaced it
+            messagesDiv.textContent = '';
         }
         updateButtonStates();
     }
@@ -157,7 +152,6 @@ async function initGapiClient(apiKeyToUse) {
 
     try {
         console.log('Attempting to initialize gapi.client with provided key...');
-        // Clear previous messages before trying to initialize
         messagesDiv.textContent = '';
         if (messagesDiv.dataset.timeoutId) {
             clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
@@ -289,7 +283,6 @@ initializeApiClientButton.addEventListener('click', async () => {
         return;
     }
 
-    // Clear messages before attempting new initialization
     messagesDiv.textContent = '';
     if (messagesDiv.dataset.timeoutId) {
         clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
@@ -307,14 +300,13 @@ getPostsButton.addEventListener('click', async () => {
     let blogUrlOrId = blogUrlOrIdInput.value.trim();
     const apiKey = apiKeyInput.value.trim();
 
-    postsList.innerHTML = '';
-    // Clear messages before starting the fetching process
-    messagesDiv.textContent = '';
+    postsList.innerHTML = ''; // Clear previous posts
+    totalPostsCountDiv.textContent = ''; // Clear previous total count
+    messagesDiv.textContent = ''; // Clear messages before starting
     if (messagesDiv.dataset.timeoutId) {
         clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
         delete messagesDiv.dataset.timeoutId;
     }
-
 
     if (!gapiClientReady || apiKey !== currentApiKeyInClient) {
         displayMessage('Please initialize the Google API Client with your API Key first.', 'error');
@@ -328,7 +320,8 @@ getPostsButton.addEventListener('click', async () => {
         return;
     }
 
-    showLoading(true);
+    showLoading(true); // showLoading now also clears previous posts and count
+
     try {
         if (blogUrlOrId.length > 0 && !(blogUrlOrId.startsWith('http://') || blogUrlOrId.startsWith('https://')) && !/^\d+$/.test(blogUrlOrId)) {
             blogUrlOrId = 'https://' + blogUrlOrId;
@@ -345,26 +338,48 @@ getPostsButton.addEventListener('click', async () => {
 
         const allPosts = await listAllPosts(blogId, apiKey);
 
+        // --- NEW RENDERING LOGIC ---
         if (allPosts.length === 0) {
             postsList.innerHTML = '<li>No posts found for this blog, or the provided Blog ID/URL is invalid or has no posts.</li>';
             displayMessage('No posts found for the provided Blog ID/URL.', 'info');
+            totalPostsCountDiv.textContent = 'Total Posts: 0';
         } else {
+            // Sort posts by published date, newest first
             allPosts.sort((a, b) => new Date(b.published) - new Date(a.published));
-            postsList.innerHTML = '';
+
+            totalPostsCountDiv.textContent = `Total Posts: ${allPosts.length}`;
+
+            let currentMonthYear = '';
+            const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
             allPosts.forEach(post => {
+                const postDate = new Date(post.published);
+                const month = monthNames[postDate.getMonth()];
+                const year = postDate.getFullYear();
+                const day = postDate.getDate();
+                const monthYear = `${month} ${year}`;
+
+                // Check if we need to add a new month header
+                if (monthYear !== currentMonthYear) {
+                    currentMonthYear = monthYear;
+                    const headerItem = document.createElement('li');
+                    headerItem.className = 'post-month-header';
+                    headerItem.textContent = currentMonthYear;
+                    postsList.appendChild(headerItem);
+                }
+
                 const listItem = document.createElement('li');
                 listItem.className = 'post-item';
-                listItem.innerHTML = `
-                    <h3><a href="${post.url}" target="_blank">${post.title}</a></h3>
-                    <p>Published: ${new Date(post.published).toLocaleDateString()}</p>
-                `;
+                // Format: Day: Post title
+                listItem.innerHTML = `<strong>${day}:</strong> <a href="${post.url}" target="_blank">${post.title}</a>`;
                 postsList.appendChild(listItem);
             });
             displayMessage(`Successfully loaded ${allPosts.length} posts.`, 'success');
         }
     } catch (error) {
-        displayMessage(`Error: ${error.message}`, 'error'); // Ensure errors are displayed as 'error' type
+        displayMessage(`Error: ${error.message}`, 'error');
         console.error('API Error:', error);
+        totalPostsCountDiv.textContent = 'Total Posts: 0'; // Set count to 0 on error
     } finally {
         showLoading(false);
     }
@@ -376,7 +391,6 @@ clearApiKeyButton.addEventListener('click', () => {
             return;
         }
     }
-    // Clear messages when clearing API key
     messagesDiv.textContent = '';
     if (messagesDiv.dataset.timeoutId) {
         clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
@@ -389,6 +403,8 @@ clearApiKeyButton.addEventListener('click', () => {
     toggleApiKeyVisibilityButton.textContent = 'Show Key';
     gapiClientReady = false;
     currentApiKeyInClient = '';
+    postsList.innerHTML = ''; // Clear posts on API key clear
+    totalPostsCountDiv.textContent = ''; // Clear total count on API key clear
     displayMessage('API Key cleared from local storage and input field. Please re-enter to use.', 'info');
     updateButtonStates();
 });
