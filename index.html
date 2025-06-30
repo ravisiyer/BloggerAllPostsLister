@@ -5,16 +5,75 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Blogger All Posts Lister</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; }
-        #controls { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; background-color: #f9f9f9; }
+        /* CSS Variables for theming */
+        :root {
+            /* Light theme defaults */
+            --background-color: #ffffff;
+            --text-color: #333333;
+            --border-color: #ccc;
+            --control-bg: #f9f9f9;
+            --header-bg: #e0f7fa;
+            --link-color: #0056b3;
+            --button-primary-bg: #007bff;
+            --button-primary-hover-bg: #0056b3;
+            --button-success-bg: #28a745;
+            --button-danger-bg: #dc3545;
+            --button-custom-bg: #6f42c1; /* Purple for Save */
+            --button-hover-custom-bg: #5b369c;
+            --input-border: #ddd;
+            --message-error-color: red;
+            --message-info-color: blue;
+            --message-success-color: green;
+        }
+
+        /* Dark mode overrides */
+        body.dark-mode {
+            --background-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --border-color: #444444;
+            --control-bg: #2a2a2a;
+            --header-bg: #003e4c; /* A darker teal */
+            --link-color: #92e0ff; /* Lighter link for dark background */
+            --button-primary-bg: #0056b3; /* Slightly darker for dark mode */
+            --button-primary-hover-bg: #003f82;
+            --button-success-bg: #218838;
+            --button-danger-bg: #c82333;
+            --button-custom-bg: #5b369c; /* Darker purple */
+            --button-hover-custom-bg: #4b2a80;
+            --input-border: #666;
+            --message-error-color: #ff8888;
+            --message-info-color: #88aaff;
+            --message-success-color: #88ff88;
+        }
+
+        /* Basic transitions for smooth theme change */
+        body, #controls, input, button, #messages, .post-month-header, #totalPostsCount {
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            background-color: var(--background-color);
+            color: var(--text-color);
+        }
+        #controls {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: var(--control-bg);
+        }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
         input[type="text"], input[type="password"] {
             width: 100%;
             padding: 8px;
             margin-bottom: 10px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--input-border);
             border-radius: 4px;
             box-sizing: border-box;
+            background-color: var(--background-color); /* Inherit from body for inputs */
+            color: var(--text-color);
         }
         .api-key-container {
             display: flex;
@@ -29,7 +88,7 @@
         .api-key-container button {
             padding: 8px 12px;
             font-size: 0.9em;
-            background-color: #6c757d;
+            background-color: #6c757d; /* Specific fixed color for show/hide key */
             color: white;
             border: none;
             border-radius: 4px;
@@ -56,19 +115,30 @@
 
         button {
             padding: 10px 15px;
-            background-color: #007bff;
+            background-color: var(--button-primary-bg);
             color: white;
             border: none;
-            border-radius: 4个体;
+            border-radius: 4px;
             cursor: pointer;
             font-size: 16px;
             margin-right: 10px;
             margin-bottom: 10px;
         }
         button:hover {
-            background-color: #0056b3;
+            background-color: var(--button-primary-hover-bg);
         }
 
+        /* Specific button colors using variables */
+        #initializeApiClientButton { background-color: var(--button-success-bg); }
+        #initializeApiClientButton:hover { background-color: var(--button-success-bg); opacity: 0.9; } /* Slight hover effect */
+
+        #clearApiKeyButton { background-color: var(--button-danger-bg); }
+        #clearApiKeyButton:hover { background-color: var(--button-danger-bg); opacity: 0.9; }
+
+        #saveAsHtmlButton { background-color: var(--button-custom-bg); }
+        #saveAsHtmlButton:hover { background-color: var(--button-hover-custom-bg); }
+
+        /* Disabled state */
         button:disabled,
         button[disabled] {
             opacity: 0.5;
@@ -76,78 +146,83 @@
             box-shadow: none;
         }
         #clearApiKeyButton:disabled {
-            background-color: #dc3545; /* Keep original color */
+            background-color: var(--button-danger-bg); /* Keep original color */
             opacity: 0.5;
             cursor: not-allowed;
         }
 
+        #messages { margin-top: 15px; }
+        #messages[style*="color: red"] { color: var(--message-error-color) !important; }
+        #messages[style*="color: blue"] { color: var(--message-info-color) !important; }
+        #messages[style*="color: green"] { color: var(--message-success-color) !important; }
 
-        #messages { margin-top: 15px; color: red; }
         #postListContainer { margin-top: 20px; }
-        /* --- CSS FOR LIST DISPLAY --- */
         #postsList {
-            list-style: none; /* Remove default bullet points */
-            padding: 0; /* Remove default padding */
-            margin: 0; /* Remove default margin */
+            list-style: none;
+            padding: 0;
+            margin: 0;
         }
         .post-month-header {
             font-size: 1.1em;
             font-weight: bold;
-            margin-top: 15px; /* Space above month header */
-            margin-bottom: 5px; /* Space below month header */
-            color: #333;
-            background-color: #e0f7fa; /* Light blue background for header */
+            margin-top: 15px;
+            margin-bottom: 5px;
+            color: var(--text-color); /* Use text color variable */
+            background-color: var(--header-bg);
             padding: 5px 10px;
             border-radius: 3px;
         }
         .post-item {
-            border: none; /* Remove border from each item */
-            padding: 0; /* Remove padding from each item */
-            margin-bottom: 2px; /* Reduce space between items */
-            font-size: 0.95em; /* Slightly smaller font for compactness */
-            line-height: 1.3; /* Adjust line height for compactness */
+            border: none;
+            padding: 0;
+            margin-bottom: 2px;
+            font-size: 0.95em;
+            line-height: 1.3;
         }
         .post-item a {
-            text-decoration: none; /* Remove underline from links */
-            color: #0056b3; /* Darker blue for links */
+            text-decoration: none;
+            color: var(--link-color);
         }
         .post-item a:hover {
-            text-decoration: underline; /* Add underline on hover */
+            text-decoration: underline;
         }
-        .post-item p {
-            display: inline; /* Keep p tag inline with title */
-            margin: 0; /* Remove margins from p tag */
-            color: #222; /* Darker text color */
-        }
-        /* Ensure Day part is bold */
         .post-item strong {
             font-weight: bold;
-            margin-right: 3px; /* Small space after day */
+            margin-right: 3px;
         }
-        /* Styling for the total posts count */
         #totalPostsCount {
             font-size: 1.1em;
             font-weight: bold;
             margin-bottom: 10px;
-            color: #007bff;
+            color: var(--link-color); /* Using link color for total count */
         }
 
-        .loading-spinner { display: none; margin-top: 20px; font-style: italic; color: #555; }
+        .loading-spinner { display: none; margin-top: 20px; font-style: italic; color: var(--text-color); }
 
-        /* Styling for the save button */
-        #saveAsHtmlButton {
-            background-color: #6f42c1; /* Purple color */
-            margin-left: 10px;
+        /* NEW: Theme toggle button styling */
+        #themeToggle {
+            float: right; /* Position to the right of the heading */
+            margin-top: -35px; /* Adjust vertical position */
+            background-color: #6c757d; /* Neutral grey */
+            color: white;
+            padding: 8px 12px;
+            font-size: 0.9em;
+            border-radius: 4px;
         }
-        #saveAsHtmlButton:hover {
-            background-color: #5b369c;
+        #themeToggle:hover {
+            background-color: #5a6268;
         }
+
+        /* Ensure message colors apply correctly */
+        #messages.error-message { color: var(--message-error-color); }
+        #messages.info-message { color: var(--message-info-color); }
+        #messages.success-message { color: var(--message-success-color); }
+
     </style>
 </head>
 <body>
     <h1>Blogger All Posts Lister</h1>
-
-    <div id="controls">
+    <button id="themeToggle">Toggle Theme</button> <div id="controls">
         <p>This tool helps you list all posts from any public Blogger blog using its URL or ID, and your own Google API Key.</p>
         <p>
             **Important:** Your API Key will be stored only in your browser's local storage for convenience.
@@ -170,15 +245,16 @@
             <label for="rememberApiKeyCheckbox">Remember API Key</label>
         </div>
 
-        <button id="initializeApiClientButton" style="background-color: #28a745;">Initialize API Client</button>
+        <button id="initializeApiClientButton">Initialize API Client</button>
         <button id="getPostsButton">Get All Posts</button>
-        <button id="clearApiKeyButton" style="background-color: #dc3545;">Clear API Key</button>
+        <button id="clearApiKeyButton">Clear API Key</button>
         <div id="messages"></div>
         <div id="loadingSpinner" class="loading-spinner">Loading posts...</div>
     </div>
 
     <div id="postListContainer">
-        <h2>Posts <button id="saveAsHtmlButton" disabled>Save as HTML</button></h2> <div id="totalPostsCount"></div>
+        <h2>Posts <button id="saveAsHtmlButton" disabled>Save as HTML</button></h2>
+        <div id="totalPostsCount"></div>
         <ul id="postsList">
             </ul>
     </div>
