@@ -16,7 +16,6 @@ const postsList = document.getElementById('postsList');
 const totalPostsCountDiv = document.getElementById('totalPostsCount');
 const saveAsHtmlButton = document.getElementById('saveAsHtmlButton');
 
-// NEW: Theme radio buttons and their container
 const themeSelector = document.getElementById('themeSelector');
 const themeDeviceRadio = document.getElementById('themeDevice');
 const themeLightRadio = document.getElementById('themeLight');
@@ -30,30 +29,23 @@ let apiKeyRememberedOnLoad = false;
 
 // --- Theme Functions ---
 
-// Applies the specified theme or system preference
 function applyTheme(themeChoice) {
-    document.body.classList.remove('light-mode', 'dark-mode'); // Clear existing theme classes
+    document.body.classList.remove('light-mode', 'dark-mode');
 
-    let effectiveTheme = themeChoice; // What we intend to set
-    let storedTheme = themeChoice; // What we intend to store
+    let effectiveTheme = themeChoice;
+    let storedTheme = themeChoice;
 
     if (themeChoice === 'device') {
-        // If "device" is selected, don't store an explicit theme
         localStorage.removeItem(THEME_STORAGE_KEY);
-        // Determine effective theme from system preference
         effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     } else {
-        // For 'light' or 'dark', store the explicit choice
         localStorage.setItem(THEME_STORAGE_KEY, themeChoice);
     }
 
-    // Apply the effective theme class
     if (effectiveTheme === 'dark') {
         document.body.classList.add('dark-mode');
     }
-    // No 'light-mode' class needed as :root handles light defaults
 
-    // Update radio button state based on the chosen 'themeChoice'
     if (storedTheme === 'device') {
         themeDeviceRadio.checked = true;
     } else if (storedTheme === 'light') {
@@ -63,14 +55,12 @@ function applyTheme(themeChoice) {
     }
 }
 
-
-// Determines the theme to set on initial load or if 'device' is selected
 function getInitialThemeChoice() {
     const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
     if (storedTheme) {
-        return storedTheme; // Return stored preference (light or dark)
+        return storedTheme;
     }
-    return 'device'; // If nothing stored, default to 'device'
+    return 'device';
 }
 
 // --- Utility Functions ---
@@ -82,7 +72,7 @@ function displayMessage(msg, type = 'error') {
         messagesDiv.classList.add('error-message');
     } else if (type === 'success') {
         messagesDiv.classList.add('success-message');
-    } else { // 'info' or default
+    } else {
         messagesDiv.classList.add('info-message');
     }
 
@@ -135,13 +125,11 @@ function showLoading(show) {
     rememberApiKeyCheckbox.disabled = show;
     saveAsHtmlButton.disabled = show;
 
-    // NEW: Disable theme radio buttons during loading
     if (show) {
         themeSelector.classList.add('disabled');
     } else {
         themeSelector.classList.remove('disabled');
     }
-
 
     if (show) {
         messagesDiv.textContent = 'Fetching posts...';
@@ -334,7 +322,6 @@ async function listAllPosts(blogId, apiKey, posts = [], pageToken = undefined) {
 
 // --- Event Handlers ---
 
-// NEW: Event listener for theme radio buttons
 themeSelector.addEventListener('change', (event) => {
     applyTheme(event.target.value);
 });
@@ -471,9 +458,15 @@ getPostsButton.addEventListener('click', async () => {
                     postsList.appendChild(headerItem);
                 }
 
+                // NEW: Ensure post URL uses HTTPS
+                let postUrl = post.url;
+                if (postUrl.startsWith('http://')) {
+                    postUrl = postUrl.replace('http://', 'https://');
+                }
+
                 const listItem = document.createElement('li');
                 listItem.className = 'post-item';
-                listItem.innerHTML = `<strong>${day}:</strong> <a href="${post.url}" target="_blank">${post.title}</a>`;
+                listItem.innerHTML = `<strong>${day}:</strong> <a href="${postUrl}" target="_blank">${post.title}</a>`;
                 postsList.appendChild(listItem);
             });
             displayMessage(`Successfully loaded ${allPosts.length} posts.`, 'success');
@@ -546,7 +539,6 @@ saveAsHtmlButton.addEventListener('click', () => {
         blogIdentifierForFile = 'unknown-blog';
     }
 
-    // This CSS for the saved HTML remains the same as before, respecting device theme
     const savedHtmlThemeStyles = `
         <style>
             /* Base styles for the saved HTML */
@@ -588,7 +580,7 @@ saveAsHtmlButton.addEventListener('click', () => {
             .post-item a {
                 color: #0056b3;
             }
-            .generated-header { /* Style for the header message in saved file */
+            .generated-header {
                 border: 1px solid #eee;
                 background-color: #f9f9f9;
                 color: #333;
@@ -677,7 +669,6 @@ saveAsHtmlButton.addEventListener('click', () => {
 
 // --- Initial DOM Load Logic ---
 document.addEventListener('DOMContentLoaded', () => {
-    // Apply initial theme based on stored preference or device setting
     applyTheme(getInitialThemeChoice());
 
     blogIdFromQueryString = getBlogIdFromQuery();
@@ -694,11 +685,8 @@ document.addEventListener('DOMContentLoaded', () => {
     updateButtonStates();
 });
 
-// NEW: Listener for system theme changes.
-// This only applies if the user has selected 'device' theme.
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-    // If the currently applied theme is 'device' (i.e., localStorage is empty)
     if (!localStorage.getItem(THEME_STORAGE_KEY)) {
-        applyTheme('device'); // Re-apply 'device' theme to reflect system change
+        applyTheme('device');
     }
 });
