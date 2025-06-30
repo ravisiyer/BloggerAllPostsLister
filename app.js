@@ -6,7 +6,7 @@ const blogUrlOrIdInput = document.getElementById('blogUrlOrIdInput');
 const apiKeyInput = document.getElementById('apiKeyInput');
 const toggleApiKeyVisibilityButton = document.getElementById('toggleApiKeyVisibility');
 const rememberApiKeyCheckbox = document.getElementById('rememberApiKeyCheckbox');
-const initializeApiClientButton = document.getElementById('initializeApiClientButton'); // NEW
+const initializeApiClientButton = document.getElementById('initializeApiClientButton');
 const getPostsButton = document.getElementById('getPostsButton');
 const clearApiKeyButton = document.getElementById('clearApiKeyButton');
 const messagesDiv = document.getElementById('messages');
@@ -15,43 +15,51 @@ const postsList = document.getElementById('postsList');
 
 let gapiClientReady = false;
 let gapiCoreLoadedPromise = null;
-let currentApiKeyInClient = ''; // NEW: To track the key GAPI is initialized with
+let currentApiKeyInClient = '';
 
 // --- Utility Functions ---
 
+// --- MODIFIED: displayMessage function ---
 function displayMessage(msg, type = 'error') {
     messagesDiv.textContent = msg;
     messagesDiv.style.color = type === 'error' ? 'red' : (type === 'success' ? 'green' : 'blue');
-    if (type !== 'persistent') {
-        setTimeout(() => { messagesDiv.textContent = ''; }, 5000);
+
+    // Clear any previous timeout to prevent premature clearing
+    if (messagesDiv.dataset.timeoutId) {
+        clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
+        delete messagesDiv.dataset.timeoutId;
     }
+
+    if (type === 'error') {
+        // Error messages persist until a new action
+        // No setTimeout here
+    } else if (type === 'info' || type === 'success') {
+        // Informational and success messages last longer
+        const timeoutId = setTimeout(() => {
+            messagesDiv.textContent = '';
+        }, 8000); // Show for 8 seconds
+        messagesDiv.dataset.timeoutId = timeoutId; // Store timeout ID to clear it later if needed
+    }
+    // 'persistent' type from previous versions is now effectively handled by not having a timeout
+    // if you explicitly wanted a message to stay, you'd call displayMessage without a type or with 'error' and then manage its clear manually.
+    // For clarity, I'm now explicitly setting behavior for 'error', 'info', 'success'.
+    // If you need a truly persistent, non-error message, we can add a specific 'sticky' type.
 }
 
 function updateButtonStates() {
     const isApiKeyEmpty = apiKeyInput.value.trim().length === 0;
     const isBlogInputEmpty = blogUrlOrIdInput.value.trim().length === 0;
-    const isCurrentApiKeyInClient = apiKeyInput.value.trim() === currentApiKeyInClient && gapiClientReady; // NEW check
+    const isCurrentApiKeyInClient = apiKeyInput.value.trim() === currentApiKeyInClient && gapiClientReady;
 
     console.log(`[updateButtonStates] API Empty: ${isApiKeyEmpty}, Blog Empty: ${isBlogInputEmpty}, GAPI Ready: ${gapiClientReady}, Key Matches Client: ${isCurrentApiKeyInClient}`);
 
-    // Clear API Key button disabled if API key field is empty
     clearApiKeyButton.disabled = isApiKeyEmpty;
-
-    // Get All Posts button disabled if blog input or API key input is empty OR GAPI client is not ready
     getPostsButton.disabled = isBlogInputEmpty || isApiKeyEmpty || !gapiClientReady || !isCurrentApiKeyInClient;
-
-    // NEW: Initialize API Client button
-    // It should be enabled only if API key field is NOT empty AND
-    // GAPI is NOT currently ready with THIS key.
     initializeApiClientButton.disabled = isApiKeyEmpty || (gapiClientReady && isCurrentApiKeyInClient);
 
-
-    // Disable Remember API Key checkbox if API key field is empty
     rememberApiKeyCheckbox.disabled = isApiKeyEmpty;
-    // If the checkbox becomes disabled (because API key is empty), ensure it's unchecked
     if (isApiKeyEmpty) {
         rememberApiKeyCheckbox.checked = false;
-        // Also ensure it's cleared from storage immediately if the input becomes empty
         localStorage.removeItem(BLOGGER_API_KEY_STORAGE_KEY);
         localStorage.removeItem(BLOGGER_API_KEY_REMEMBER_FLAG);
     }
@@ -61,7 +69,7 @@ function showLoading(show) {
     loadingSpinner.style.display = show ? 'block' : 'none';
     getPostsButton.disabled = show;
     clearApiKeyButton.disabled = show;
-    initializeApiClientButton.disabled = show; // Disable new button during loading
+    initializeApiClientButton.disabled = show;
     blogUrlOrIdInput.disabled = show;
     apiKeyInput.disabled = show;
     toggleApiKeyVisibilityButton.disabled = show;
@@ -70,9 +78,14 @@ function showLoading(show) {
     if (show) {
         messagesDiv.textContent = 'Fetching posts...';
         messagesDiv.style.color = 'blue';
+        // When starting a new loading action, clear previous messages immediately
+        if (messagesDiv.dataset.timeoutId) {
+            clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
+            delete messagesDiv.dataset.timeoutId;
+        }
     } else {
         if (messagesDiv.textContent === 'Fetching posts...') {
-            messagesDiv.textContent = '';
+            messagesDiv.textContent = ''; // Clear loading message if no other message has replaced it
         }
         updateButtonStates();
     }
@@ -95,16 +108,12 @@ function getSavedApiKey() {
     }
 }
 
-// clearSavedApiKey no longer clears apiKeyInput.value, only local storage
 function clearSavedApiKey() {
     localStorage.removeItem(BLOGGER_API_KEY_STORAGE_KEY);
     localStorage.removeItem(BLOGGER_API_KEY_REMEMBER_FLAG);
     rememberApiKeyCheckbox.checked = false;
-    // We explicitly DO NOT clear apiKeyInput.value here
     updateButtonStates();
 }
-
-// --- GAPI Core Loading (from index.html onload) ---
 
 window.onGapiLoaded = function() {
     console.log('Google API client script loaded. Now loading the core client module...');
@@ -117,8 +126,7 @@ window.onGapiLoaded = function() {
         const savedKey = getSavedApiKey();
         if (savedKey) {
             apiKeyInput.value = savedKey;
-            // 1) If at app startup time we are using a remembered key then gapi client initialization can be done right away.
-            initGapiClient(savedKey); // Initialize GAPI with saved key immediately
+            initGapiClient(savedKey);
         } else {
             displayMessage('Please enter your Google API Key and Blog URL or ID to begin.', 'info');
             updateButtonStates();
@@ -130,18 +138,16 @@ window.onGapiLoaded = function() {
     });
 };
 
-// --- GAPI Client Initialization ---
 async function initGapiClient(apiKeyToUse) {
     if (!apiKeyToUse) {
         console.log('initGapiClient called with empty API Key, cannot initialize.');
         gapiClientReady = false;
-        currentApiKeyInClient = ''; // Reset
+        currentApiKeyInClient = '';
         displayMessage('API Key is missing for initialization.', 'error');
         updateButtonStates();
         return;
     }
 
-    // If GAPI is already initialized with THIS specific key, do nothing.
     if (gapiClientReady && currentApiKeyInClient === apiKeyToUse) {
         console.log('gapi.client already initialized with this key.');
         displayMessage('API Client already initialized with this key.', 'info');
@@ -151,18 +157,25 @@ async function initGapiClient(apiKeyToUse) {
 
     try {
         console.log('Attempting to initialize gapi.client with provided key...');
+        // Clear previous messages before trying to initialize
+        messagesDiv.textContent = '';
+        if (messagesDiv.dataset.timeoutId) {
+            clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
+            delete messagesDiv.dataset.timeoutId;
+        }
+
         await gapi.client.init({
             apiKey: apiKeyToUse,
             discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/blogger/v3/rest"],
         });
         gapiClientReady = true;
-        currentApiKeyInClient = apiKeyToUse; // Store the key that successfully initialized GAPI
+        currentApiKeyInClient = apiKeyToUse;
         console.log('gapi.client initialized SUCCESSFULLY.');
         displayMessage('Google API Client ready. You can now Get All Posts.', 'success');
         updateButtonStates();
     } catch (error) {
         gapiClientReady = false;
-        currentApiKeyInClient = ''; // Clear on failure
+        currentApiKeyInClient = '';
         console.error('Error initializing gapi.client:', error);
         const errorMessage = error.details || (error.result && error.result.error && error.result.error.message) || error.message || JSON.stringify(error);
         displayMessage(`Failed to initialize API client. Error: ${errorMessage}. Please check your key and restrictions.`, 'error');
@@ -170,9 +183,7 @@ async function initGapiClient(apiKeyToUse) {
     }
 }
 
-// --- API Calls (no changes) ---
 async function getBlogIdFromUrl(blogUrl, apiKey) {
-    // This check is duplicated with updateButtonStates, but good as a fail-safe
     if (!gapiClientReady || apiKey !== currentApiKeyInClient) {
         throw new Error("Google API Client is not initialized or API Key has changed. Please initialize client first.");
     }
@@ -194,7 +205,6 @@ async function getBlogIdFromUrl(blogUrl, apiKey) {
 }
 
 async function listAllPosts(blogId, apiKey, posts = [], pageToken = undefined) {
-    // This check is duplicated with updateButtonStates, but good as a fail-safe
     if (!gapiClientReady || apiKey !== currentApiKeyInClient) {
         throw new Error("Google API Client is not initialized or API Key has changed. Please initialize client first.");
     }
@@ -241,17 +251,14 @@ toggleApiKeyVisibilityButton.addEventListener('click', () => {
     }
 });
 
-// --- MODIFIED: apiKeyInput listener to reset GAPI state on change ---
 apiKeyInput.addEventListener('input', async () => {
-    // Reset GAPI client readiness if the user starts typing and the key changes
     if (gapiClientReady && apiKeyInput.value.trim() !== currentApiKeyInClient) {
         gapiClientReady = false;
         currentApiKeyInClient = '';
         displayMessage('API Key changed. Please click "Initialize API Client" to re-initialize.', 'info');
     }
-    updateButtonStates(); // Always update button states
+    updateButtonStates();
 });
-
 
 blogUrlOrIdInput.addEventListener('input', updateButtonStates);
 
@@ -266,12 +273,11 @@ rememberApiKeyCheckbox.addEventListener('change', () => {
             displayMessage('Please enter an API Key before checking "Remember API Key".', 'error');
         }
     } else {
-        clearSavedApiKey(); // Clear key from local storage (but not the input field)
+        clearSavedApiKey();
         displayMessage('API Key removed from local storage.', 'info');
     }
 });
 
-// --- NEW: Initialize API Client Button Listener ---
 initializeApiClientButton.addEventListener('click', async () => {
     const apiKey = apiKeyInput.value.trim();
     if (apiKey.length === 0) {
@@ -283,11 +289,17 @@ initializeApiClientButton.addEventListener('click', async () => {
         return;
     }
 
+    // Clear messages before attempting new initialization
+    messagesDiv.textContent = '';
+    if (messagesDiv.dataset.timeoutId) {
+        clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
+        delete messagesDiv.dataset.timeoutId;
+    }
+
     displayMessage('Initializing API client...', 'info');
-    await gapiCoreLoadedPromise; // Ensure core GAPI is loaded first
+    await gapiCoreLoadedPromise;
     await initGapiClient(apiKey);
 });
-
 
 getPostsButton.addEventListener('click', async () => {
     console.log('[Get All Posts] button clicked. Current gapiClientReady:', gapiClientReady);
@@ -296,16 +308,21 @@ getPostsButton.addEventListener('click', async () => {
     const apiKey = apiKeyInput.value.trim();
 
     postsList.innerHTML = '';
+    // Clear messages before starting the fetching process
     messagesDiv.textContent = '';
+    if (messagesDiv.dataset.timeoutId) {
+        clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
+        delete messagesDiv.dataset.timeoutId;
+    }
 
-    // Verify GAPI client is ready AND the key in the input matches the initialized key
+
     if (!gapiClientReady || apiKey !== currentApiKeyInClient) {
         displayMessage('Please initialize the Google API Client with your API Key first.', 'error');
         updateButtonStates();
         return;
     }
 
-    if (!blogUrlOrId || !apiKey) { // Should be covered by disabled state, but good as a fallback
+    if (!blogUrlOrId || !apiKey) {
         displayMessage('Please ensure both Blog URL/ID and Google API Key are entered.', 'error');
         updateButtonStates();
         return;
@@ -313,8 +330,6 @@ getPostsButton.addEventListener('click', async () => {
 
     showLoading(true);
     try {
-        // No need to call initGapiClient here, it's checked above and done by init button
-
         if (blogUrlOrId.length > 0 && !(blogUrlOrId.startsWith('http://') || blogUrlOrId.startsWith('https://')) && !/^\d+$/.test(blogUrlOrId)) {
             blogUrlOrId = 'https://' + blogUrlOrId;
             blogUrlOrIdInput.value = blogUrlOrId;
@@ -348,7 +363,7 @@ getPostsButton.addEventListener('click', async () => {
             displayMessage(`Successfully loaded ${allPosts.length} posts.`, 'success');
         }
     } catch (error) {
-        displayMessage(`Error: ${error.message}`);
+        displayMessage(`Error: ${error.message}`, 'error'); // Ensure errors are displayed as 'error' type
         console.error('API Error:', error);
     } finally {
         showLoading(false);
@@ -361,14 +376,19 @@ clearApiKeyButton.addEventListener('click', () => {
             return;
         }
     }
-    // Clear from local storage and uncheck checkbox
+    // Clear messages when clearing API key
+    messagesDiv.textContent = '';
+    if (messagesDiv.dataset.timeoutId) {
+        clearTimeout(parseInt(messagesDiv.dataset.timeoutId));
+        delete messagesDiv.dataset.timeoutId;
+    }
+
     clearSavedApiKey();
-    // Clear the visual input field here (only when "Clear API Key" button is clicked)
     apiKeyInput.value = '';
     apiKeyInput.type = 'password';
     toggleApiKeyVisibilityButton.textContent = 'Show Key';
-    gapiClientReady = false; // Reset client status
-    currentApiKeyInClient = ''; // Clear the currently initialized key
+    gapiClientReady = false;
+    currentApiKeyInClient = '';
     displayMessage('API Key cleared from local storage and input field. Please re-enter to use.', 'info');
     updateButtonStates();
 });
@@ -378,12 +398,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedKey = getSavedApiKey();
     if (savedKey) {
         apiKeyInput.value = savedKey;
-        // GAPI init will be triggered by onGapiLoaded's call to initGapiClient with savedKey
     } else {
         displayMessage('Please enter your Google API Key and Blog URL or ID to begin.', 'info');
     }
     apiKeyInput.type = 'password';
     toggleApiKeyVisibilityButton.textContent = 'Show Key';
 
-    updateButtonStates(); // Call this immediately on load to set initial button and checkbox states
+    updateButtonStates();
 });
