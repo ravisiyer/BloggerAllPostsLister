@@ -258,7 +258,7 @@
     </style>
 </head>
 <body>
-    <h1>Blogger All Posts Lister</h1>
+    <h1>Blogger All Post Titles Lister</h1>
     <div id="themeSelector">
         <input type="radio" id="themeDevice" name="theme" value="device">
         <label for="themeDevice">Device</label>
@@ -271,12 +271,16 @@
     </div>
 
     <div id="controls">
-        <p>This tool helps you list all posts from any public Blogger blog using its URL or ID, and your own Google API Key.</p>
+        <!-- <p>This tool helps you list all posts from any public Blogger blog using its URL or ID, and your own Google API Key.</p> -->
         <p>
-            **Important:** Your API Key will be stored only in your browser's local storage for convenience.
-            You are responsible for its security and usage quotas. Please ensure your API key has appropriate
-            <a href="https://console.cloud.google.com/apis/credentials" target="_blank">HTTP referrer restrictions</a>
-            (e.g., `https://<your-github-pages-domain>/*` and/or `http://127.0.0.1/*` if testing locally, and `https://*.blogspot.com/*`).
+            **Important:** You may choose that the app remembers the Google API Key you specify by storing it in your 
+            browser's local storage for convenience. You are responsible for the key's security and usage quotas. 
+            The key needs access only to Blogger API and the key's 'Application restrictions' settings should permit 
+            access to blogs (websites) whose post titles you wants to list.
+        </p>
+        <p>
+            <a href="https://raviswdev.blogspot.com/2025/07/blogger-posts-lister-web-app.html" target="_blank">
+                More about app and why Google API key is needed</a>
         </p>
 
         <label for="blogUrlOrIdInput">Blogger Blog URL or ID:</label>
@@ -290,7 +294,7 @@
 
         <div class="remember-key-option">
             <input type="checkbox" id="rememberApiKeyCheckbox">
-            <label for="rememberApiKeyCheckbox">Remember API Key</label>
+            <label for="rememberApiKeyCheckbox">Remember API Key (in your browser's local storage)</label>
         </div>
 
         <button id="initializeApiClientButton">Initialize API Client</button>

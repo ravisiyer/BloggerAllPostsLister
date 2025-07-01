@@ -1,0 +1,211 @@
+Associated Gemini chat name/label: Blogger Post Listing Script Review 20250630
+Note that initial part of the chat was on upgrading an older JS code blog page I had to do this listing posts work but which used Blogger API v2.0 and I saw that recently that code was not working properly.
+
+The below contents of this file contains a rough record (not precise as I may have missed some instructions) of the instructions I gave to Gemini for building this Blogger All Posts Lister app. The chat sessions were on 30th June and early hours of 1st July 2025. The background to this app is the part of the chat covered in my post: Protecting API keys used in browser front-end apps: Chat with Gemini, https://raviswdev.blogspot.com/2025/06/protecting-api-keys-used-in-browser.html . Towards the end of the part of the chat covered in the post, Gemini provided code for the first version of this app.
+
+The first version did not work and I had a few rounds with Gemini to fix it (me providing the error(s) info. and Gemini providing me updated code to fix the error(s)). Eventually we got a working version. My message at that point is given below (but editing out some details of a warning error message):
+
+Now it works listing all posts! Great.
+
+Browser console shows some errors (not that I am trying it on http://127.0.0.1 and which I have included as a website for my Google API key). The browser console output:
+
+Google API client script loaded. Now loading the core client module...
+app.js:62 gapi.client core module loaded.
+app.js:96 Attempting to initialize gapi.client with provided key...
+cb=gapi.loaded_0?le=scs:92 [Violation] Permissions policy violation: unload is not allowed in this document.
+...
+app.js:102 gapi.client initialized SUCCESSFULLY.
+cb=gapi.loaded_0?le=scs:92 [Violation] Permissions policy violation: unload is not allowed in this document.
+...
+
+Gem: That's fantastic news that the app is now listing all posts! That was the main hurdle.
+
+Regarding the "Permissions policy violation: unload is not allowed in this document." errors you're seeing in the console, let's break them down.
+
+Understanding the "Permissions Policy Violation: unload" Error
+This error is a browser-level warning, not an error in your JavaScript logic or the GAPI calls themselves. It means that Google's gapi.js library (or one of its internal components/proxies) is attempting to use a feature related to the unload event, but the browser (likely Chrome or Edge) is blocking it due to a Permissions Policy that's either implicitly or explicitly set.
+
+Here's why this isn't usually a problem for your app's functionality: ...
+=========================================
+
+Some improvements I want:
+1) If the Google API key field has a value, by default the value should be hidden/masked. 
+2) If blog name is provided without 'https://' it should be prefixed automatically.
+3) If blog ID is not found, currently no message is shown to user.
+
+==========
+Now that's fixed. If blog ID is not found, message is shown to user. Great.
+Next I need:
+1) The Clear API Key button should show a confirm dialog before clearing the key.
+2) If the API key field is empty, the Clear API key should be disabled.
+3) If Blog URL or ID field is empty or API key field is empty, the Get All Posts button should be disabled.
+4) Storing API key in local storage should be an option provided to user.
+
+
+=========
+Now Get All Posts works. Great!
+There is no visual cue for 'Get All Posts' and 'Clear API key' buttons in enabled/disabled state.
+
+===========
+Now we have visual cue for 'Get All Posts' and 'Clear API key' buttons in enabled/disabled state. Great!
+Remember API key checkbox should be disabled when API key is empty and disabled visual cue should be provided.
+When do we save API key in local storage? I think we are doing that if Remember API key checkbox is checked and we do a Get All Posts. Shouldn't we do it when Remember checkbox state changes to checked? And should we clear the API key from local storage when Remember checkbox state is unchecked? What do u say?
+=========
+
+Typing in even one letter in API key triggers initializing gapi.client and shows an error.
+Remember API key should not clear the API key field on the page. It should only remove it from local storage.
+
+=========
+The Remember API part is fixed. Great!
+The API key field delay has improved matters as there is a slight delay before gapi init is triggered. However, if the user is debugging API key related issue, he/she may be referring to another window and typing in slowly. That will trigger multiple gapi init calls (after typed key length crosses 10 or something) as per current implementation, I think.
+Perhaps the UX may be better if we do it this way:
+1) If at app startup time we are using a remembered key then gapi client initialization can be done right away.
+2) If the API key field is empty then as the user keys in the API key we do NOT trigger gapi client initialization. In this case, Gapi client initialization has to be invoked by the user specifically by clicking a button we add for this purpose.
+3) If after gapi client has been initialized successfully, if the user changes the API key field the gapi client connection or whatever it is called should be reset. User has to specify the full key and then initiate gapi client init by pressing the button mentioned earlier.
+
+=======
+
+The modified UI is good and most of its functionality worked well. Great.
+If I key in an invalid API key and click Initialize API client, I am shown the correct error message. But that goes away too quickly. I would like two changes:
+1) Informational messages like x posts loaded which are currently being shown for short time, can be shown for longer time before vanishing.
+2) Error messages should not disappear until the user invokes another action which 
+  2a) either succeeds, in which case the error message should be made blank or replaced by suitable success message.
+  2b) or fails in which case the error message should be updated to show latest failure related error message.
+  
+============
+
+
+The changes made are working well. Error messages are persistant and info. messages stay for longer time. Great!
+Now for the display of list of posts, I want the following changes:
+1) The list should have less blank space between lines and entries as I would like to show the user more content in one screen.
+2) List should be month wise with a small header for each month in format like November 2024
+3) Each post entry should be in format of:
+	Day part of date: Post title
+	For example:
+	31:  Seeking MERN stack web development part-time, work-from-home assignment with up to 2 weeks trial (pay if you benefit)
+	---
+	The day part should be in bold.
+4) The published date part of the current entry is no longer required and should be omitted to reduce space taken by each post entry.
+5) At the beginning of the list, we should mention the total number of posts in the list
+ 
+Awesome! It is working like a charm and the information density seems to be just right for some large blogs like one of my blogs with close to 1500 posts. And that tested the recursive calls in the code to fetch the entire list too. It worked great! It did take some time but that was expected.
+  
+=================
+
+
+I would like an optional query string parameter for Blog URL or ID. 
+If that query string parameter is passed then the Blog URL or ID field should be populated with that value.
+Further, if Remember API key is true and we have an API key in local storage, then if gapi client init is successful, without waiting for user to click 'Get All Posts' we should initiate the Get All Posts action.
+The objective of these changes is to provide a simple way for users to provide a link with query string parameter which when clicked will navigate to this app along with specifying a blog to act on. So as soon as user navigates to the app, if API key is available, the app will get and later show the list of posts in that blog. 
+What do you think? Is this a good enhancement?
+
+============
+http://127.0.0.1:5500/index.html?blog=https://yourblog.blogspot.com/
+
+http://127.0.0.1:5500?blog=https://raviswdev.blogspot.com/
+
+The query string part seems to be working well. Excellent!
+Now at the top of the list of posts display I would like a 'Save as HTML' button which when clicked save the list of posts as an HTML file on user's local device. In this generated HTML file there should be a header stating that the file has been generated on so-and-so date and time.
+Such a file serves as a static file of this list of posts. Also this file's HTML can be copy-pasted into a blog page to provide blog visitors the static list of posts generated on a particular date & time. In case the dynamically generated list through this app fails for some reason, the blog visitors can fall back on the static list of posts.
+
+Seems to be working well! Awesome!
+The suggested filename format can be: blogurl without https__ followed by Posts-List followed date in yyyy-mm-dd format.
+Also we can use - instead of _
+So for blog url: https://tnarayanasasthri.blogspot.com ,
+instead of Blogger_Posts_https___tnarayanasasthri_blogspot_com_06-30-2025.html
+the suggested/default filename should be tnarayanasasthri-blogspot-com-Posts-List-2025-06-30.html
+Also the title element should be:
+            <title>Blogger Posts - https://tnarayanasasthri.blogspot.com - 2025-06-30</title>
+The yyyy-mm-dd format instead of mm-dd-yyyy format avoids inconsistent interpretation based on locale.
+Note that when we use month by name like June like in header text of the HTML file there is no possibility of such inconsistent interpretation.
+
+Works great! 
+Now I don't want you to do this right away but am exploring the possibility.
+If this were a React app, we could considered adding light/dark theme.
+But this is an HTML and Javascript app. I have never implement light/dark theme in HTML/JS apps. Is that difficult to do?
+
+Since it is feasible, can you then enhance our app to have light/dark theme support?
+
+Seems to work well! Brilliant!
+One clarification: Does the app read device settings for dark/light mode when it starts up? The theme button can act as a toggle overriding the device mode.
+One small issue: The saved html file seems to hard code the theme in it. So when that file is opened it does not follow the device theme. Can we change it such that the saved HTML file always follows the device theme?
+
+
+Isn't it better to have a three way toggle - Device, Light and Dark?
+
+The app seems to work well with these changes. Awesome!
+A minor issue: When I open the saved HTML file on Chrome and click on a post link, Chrome shows me a warning: raviswdev.blogspot.com doesn't support a secure connection with HTTPS ...
+I noticed that the link address simply has something like: http://raviswdev.blogspot.com/2025/06/android-app-icon-clipping-issue-and-fix.html
+Shouldn't it be https://raviswdev.blogspot.com/2025/06/android-app-icon-clipping-issue-and-fix.html ?
+
+That seems to be fixed now.
+A great feature addition would be a filter on post title. Note that Blogger supports this on dashboard itself and so the API itself would support a filter on title. Thus we get back a filtered result set of posts from Blogger itself instead of the app retrieving all post titles and then doing a filter on the all titles retrieved list.
+Could you add this feature to the app? If so, the header part of both the posts display on page as well as 'Save to HTML' should mention the filter text. Note that this filter is only on the title.
+
+=============
+
+Key parts of Gemini response: You're right, adding a filter by post title would be a fantastic enhancement, and leveraging the Blogger API's capabilities directly for this is the most efficient approach!
+
+After reviewing the Blogger API documentation, specifically the posts.list method, it appears there isn't a direct title parameter for filtering in the posts.list endpoint. However, there is a q parameter on the posts.search endpoint, but that searches across content and titles, and crucially, it does not support pagination (pageToken). This means posts.search isn't suitable for retrieving a comprehensive list of all matching posts if there are more than maxResults (typically 500).
+
+Therefore, to implement a "filter on post title" that functions robustly with pagination, we'll need to fetch all posts as before, and then apply the title filter client-side (within our app.js). While this means we're still downloading all post titles, it allows us to handle the filtering and pagination correctly, which is a better user experience than a partial search.
+
+Let's integrate this feature. We'll add an input field for the filter text and modify the getPostsButton logic to apply the filter. We'll also update the HTML saving functionality to reflect the applied filter.
+
+...
+-----------
+It provided code but the HTML file had style code missing ... Trying to fix that resulted in another error ... Looks like the chat has become too long and Gemini is getting confused.
+
+Me: I am getting the error: API Error: ReferenceError: getBlogIdFromUrl is not defined
+    at HTMLButtonElement.<anonymous> (app.js:413:13)
+=============
+
+I think as this chat has become very long, you are now making mistakes. So let me create a new chat (which I may do sometime later), upload the stable files prior to this enhancement code you provided which has issues, and take it up from there.
+
+Gem: .... [gave some fix which I am ignoring] ....
+
+Regarding Your Decision to Start a New Chat:
+
+I completely understand and respect your decision to start a new chat with a stable set of files. That is often the most practical and efficient way to proceed when a conversation has become lengthy and there have been a few regressions or missed details. It allows for a clean slate and reduces the cognitive load of tracking a long history.
+
+Please go ahead and create a new chat when you're ready. When you do, please feel free to:
+
+Upload the index.html and app.js files that you consider stable (i.e., the ones that were working correctly before the title filter and http/https changes were introduced).
+
+State your goal clearly in the new chat. For example, "I'd like to add a title filter feature and ensure all links are HTTPS in this Blogger Post Lister. Here are my current index.html and app.js files."
+
+I will then use those as my base and proceed with the new enhancements, being much more careful about ensuring all existing functionality remains intact and introducing new features without regressions.
+
+Thank you for your patience and for continuing to provide precise feedback. It helps me to learn and improve.
+==============
+
+Me: I just wanted to confirm one thing. Blogger dashboard provides a search by title only . See https://support.google.com/blogger/answer/9675453?hl=en&authuser=0&visit_id=638869079754469610-563498262&p=search-operators&rd=1
+
+But the Blogger API v3.0 (current version) does not seem to support search by title only. It searches title and content.
+
+So perhaps Blogger Dashboard also may be retrieving all post titles and then doing a filter on that on client side. What do u say?
+
+Gem: You've hit on a very astute observation, and it's a critical point when working with APIs: the public API often doesn't expose the full internal capabilities that a platform's own dashboard uses.
+
+You are absolutely correct. My research also confirms that the Blogger API v3 posts.list method, which is used for retrieving posts, does not offer a title parameter for filtering. The posts.search method does have a q parameter that searches across titles and content, but as we discussed, it lacks pagination, making it unsuitable for comprehensive listing.
+
+Given this, your hypothesis is very likely accurate:
+
+It is highly probable that the Blogger Dashboard, when performing a "search by title only," retrieves all relevant post data (or at least all titles and necessary metadata for display) and then performs the title-only filtering on the client-side (within your browser or on their own internal servers before sending the data to your browser).
+
+Here's why this makes sense and reinforces our approach:
+
+API Limitations: The public API's posts.list endpoint is primarily designed for retrieving paginated lists of posts based on criteria like date ranges, labels, and status, but not specific title content.
+
+Dashboard Needs vs. Public API: Internal tools often have direct access to more granular database queries or specialized internal APIs that are not exposed to the public. This allows them to build highly optimized features for their own use cases.
+
+Client-Side Efficiency: For a dashboard, retrieving a list of all post titles (which are generally small in data size) and then filtering them in the browser is a perfectly viable and often efficient approach, especially if the total number of posts isn't in the millions. It avoids the need for the API to process complex "contains" queries across massive text fields for every request, which can be computationally intensive on the server-side.
+
+User Experience: From a user's perspective, they just want a fast search. Whether it's server-side filtered or client-side filtered after an initial broad fetch, as long as it's quick, they won't notice the difference in implementation.
+
+Conclusion:
+
+Yes, your deduction is very strong. The disparity between the Blogger Dashboard's "title-only" search and the public API's capabilities strongly suggests that the dashboard implements this specific filter client-side after retrieving the posts. This validates our chosen approach for the application: fetching all posts (or at least enough data to filter by title) and then applying the title filter in app.js.
+
+It's a good reminder that just because a feature exists in a service's UI, it doesn't always mean there's a direct, matching public API endpoint for it. Sometimes, custom logic is built on top of more generic API calls.
+===================
