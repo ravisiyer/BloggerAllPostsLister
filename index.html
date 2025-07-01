@@ -144,7 +144,7 @@
 
         /* Specific button colors using variables */
         #initializeApiClientButton { background-color: var(--button-success-bg); }
-        #initializeApiClientButton:hover { background-color: var(--button-success-bg); opacity: 0.9; } /* Slight hover effect */
+        #initializeApiClientButton:hover:not(:disabled) { background-color: var(--button-success-bg); opacity: 0.9; } /* Slight hover effect */
 
         #clearApiKeyButton { background-color: var(--button-danger-bg); }
         #clearApiKeyButton:hover { background-color: var(--button-danger-bg); opacity: 0.9; }
