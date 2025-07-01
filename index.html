@@ -45,7 +45,16 @@
             --message-info-color: #88aaff;
             --message-success-color: #88ff88;
         }
+        /* This is the crucial new rule for UNVISITED links in dark mode */
+        body.dark-mode a {
+            color: var(--link-color); /* This will now override a:-webkit-any-link */
+        }
 
+        /* Ensure visited links are also readable in dark mode */
+        body.dark-mode a:visited {
+            color: #b388ff; /* A different shade for visited links, easily readable */
+        }
+        
         /* Basic transitions for smooth theme change */
         body, #controls, input, button, #messages, .post-month-header, #totalPostsCount {
             transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
