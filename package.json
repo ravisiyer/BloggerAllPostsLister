@@ -1,0 +1,26 @@
+{
+  "name": "postslister",
+  "version": "1.0.0",
+  "description": "Blogger Posts Lister Web App\r ================",
+  "scripts": {
+    "start": "parcel index.html",   
+    "build": "parcel build index.html --dist-dir dist --public-url ./", 
+    "predeploy": "npm run build",   
+    "deploy": "gh-pages -d dist"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ravisiyer/BloggerAllPostsLister.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ravisiyer/BloggerAllPostsLister/issues"
+  },
+  "homepage": "https://github.com/ravisiyer/BloggerAllPostsLister#readme",
+  "devDependencies": {
+    "gh-pages": "^6.3.0",
+    "parcel": "^2.15.4"
+  }
+}
