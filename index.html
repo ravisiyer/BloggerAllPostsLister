@@ -67,13 +67,21 @@
 
         body {
             font-family: sans-serif;
-            margin: 20px;
+            margin: 10px 20px;
             background-color: var(--background-color);
             color: var(--text-color);
         }
+        /* NEW: Header container for H1 and Theme Selector */
+        .header-container {
+            display: flex;
+            justify-content: space-between; /* Aligns H1 to left, themeSelector to right */
+            align-items: center; /* Vertically centers them */
+            margin-bottom: 5px; /* Space below header */
+        }
         #controls {
             margin-bottom: 20px;
-            padding: 15px;
+            /* padding: 15px; */
+            padding: 0px 15px 15px 15px;
             border: 1px solid var(--border-color);
             border-radius: 8px;
             background-color: var(--control-bg);
@@ -216,8 +224,8 @@
 
         /* NEW: Theme selector styling (radio buttons) */
         #themeSelector {
-            float: right;
-            margin-top: -35px; /* Adjust vertical position */
+            /* float: right; This is removed and replaced by header-container flexbox */
+            /* margin-top: -35px; This is removed as vertical alignment is handled by flexbox */
             display: flex; /* Arrange radio buttons horizontally */
             align-items: center;
             font-size: 0.9em;
@@ -267,20 +275,21 @@
     </style>
 </head>
 <body>
-    <h1>Blogger All Post Titles Lister</h1>
-    <div id="themeSelector">
-        <input type="radio" id="themeDevice" name="theme" value="device">
-        <label for="themeDevice">Device</label>
+    <div class="header-container">
+        <h2>Blogger All Post Titles Lister</h2>
+        <div id="themeSelector">
+            <input type="radio" id="themeDevice" name="theme" value="device">
+            <label for="themeDevice">Device</label>
 
-        <input type="radio" id="themeLight" name="theme" value="light">
-        <label for="themeLight">Light</label>
+            <input type="radio" id="themeLight" name="theme" value="light">
+            <label for="themeLight">Light</label>
 
-        <input type="radio" id="themeDark" name="theme" value="dark">
-        <label for="themeDark">Dark</label>
+            <input type="radio" id="themeDark" name="theme" value="dark">
+            <label for="themeDark">Dark</label>
+        </div>
     </div>
 
     <div id="controls">
-        <!-- <p>This tool helps you list all posts from any public Blogger blog using its URL or ID, and your own Google API Key.</p> -->
         <p>
             **Important:** You may choose that the app remembers the Google API Key you specify by storing it in your 
             browser's local storage for convenience. You are responsible for the key's security and usage quotas. 
