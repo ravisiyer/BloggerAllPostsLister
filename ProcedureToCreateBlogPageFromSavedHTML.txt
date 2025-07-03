@@ -2,18 +2,22 @@
 Procedure to create blog page or post from static list of posts saved html file
 
 1) Copy the html of saved list of posts html file to a temporary file.
-2) Open the temporary file in an editor
-3) Remove HTML start and end tag.
-4) Remove entire head element 
+2) Open the temporary file in an editor.
+3) Remove DOCTYPE html tag and HTML start and end tags.
+4) Retain style element of head element but remove other head elements (meta, title) and head start and end tags.
 5) In style element, remove dark mode code:
         /* Dark mode overrides using prefers-color-scheme */
         @media (prefers-color-scheme: dark) { ... }
-6) Remove body start and end tag
-7) Optionally convert web app name in HTML content to a link:
-	<a href="https://ravisiyer.github.io/BloggerAllPostsLister/" target="_blank">Blogger All Posts Lister web app</a>.</p>
-8) Copy paste the contents of modified temporary file contents into an empty blog page/post in HTML view (not Compose view)
-9) Switch to Compose view and check if contents are shown in it
-10) Publish page/post and check its contents both in light and dark mode (should be same in both modes).
+6) In style element, remove body CSS rule:
+                    body { font-family: sans-serif; margin: 20px; line-height: 1.5; }
+7) Remove body start and end tags.
+8) Optionally convert web app name in HTML content to a link:
+        Replace text: Blogger All Posts Lister
+        with:
+	<a href="https://ravisiyer.github.io/BloggerAllPostsLister/" target="_blank">Blogger All Posts Lister web app</a>
+9) Copy paste the contents of modified temporary file contents into an empty blog page/post in HTML view (not Compose view).
+10) Switch to Compose view and check if contents are shown in it.
+11) Publish page/post and check its contents both in light and dark mode (should be same in both modes).
 
 Notes
 A) Dark mode style works in saved html file opened in browser but does not work properly when used in blog page/post. That's why I am removing that code from blog page/post.
