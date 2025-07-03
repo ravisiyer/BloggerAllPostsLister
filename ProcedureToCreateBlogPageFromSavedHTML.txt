@@ -1,24 +1,31 @@
-2 July 2025
-Procedure to create blog page or post from static list of posts saved html file
+3 July 2025
+Procedure to create blog page or post from static list of posts saved html file is given below. Example of a page created with this procedure: Static Copy of List of Posts in Blog In Reverse Chronological Order taken on 1 July 2025, https://raviswdev.blogspot.com/p/static-copy-of-list-of-posts-in-blog-in.html .
 
 1) Copy the html of saved list of posts html file to a temporary file.
 2) Open the temporary file in an editor.
 3) Remove DOCTYPE html tag and HTML start and end tags.
-4) Retain style element of head element but remove other head elements (meta, title) and head start and end tags.
-5) In style element, remove dark mode code:
+4) Retain style element of head element but remove other head elements (meta, title) and head start and end tags. Now style element will be at top level (not within a head element).
+5) In style element, remove body CSS rule:
+                    body { font-family: sans-serif; margin: 20px; line-height: 1.5; }
+6) In style element, remove dark mode code:
         /* Dark mode overrides using prefers-color-scheme */
         @media (prefers-color-scheme: dark) { ... }
-6) In style element, remove body CSS rule:
-                    body { font-family: sans-serif; margin: 20px; line-height: 1.5; }
-7) Remove body start and end tags.
+7) Remove body element start and end tags - <body> and </body>.
 8) Optionally convert web app name in HTML content to a link:
         Replace text: Blogger All Posts Lister
         with:
 	<a href="https://ravisiyer.github.io/BloggerAllPostsLister/" target="_blank">Blogger All Posts Lister web app</a>
 9) Copy paste the contents of modified temporary file contents into an empty blog page/post in HTML view (not Compose view).
 10) Switch to Compose view and check if contents are shown in it.
-11) Publish page/post and check its contents both in light and dark mode (should be same in both modes).
+11) Publish page/post and check its contents both in light and dark modes (should be same in both modes).
 
 Notes
-A) Dark mode style works in saved html file opened in browser but does not work properly when used in blog page/post. That's why I am removing that code from blog page/post.
-B) Copying whole HTML of saved HTML file to blog page/post (in HTML view) does not show anything in Compose view.
+A) Blogger puts all the HTML content of the blog page/post within a div element. A style element placed within a div element and as its first element, will be applied to all other elements in the div element, according to the CSS rules defined in the style element (unless overridden by other style elements and/or inline styles).
+
+Placing a <style> tag within a <div> isn't standard best practice. But it seems that specifying style for an individual page/post in a Blogger blog in the head element of that page/post when rendered, will need fiddling with Blogger Theme HTML/CSS. Some mistakes there could impact the whole blog. So I view it as risky given that I need this only for one page per blog as of now. The approach I have used may not be so clean but it impacts only that particular page/post in the blog and the rest of the blog is unaffected by any issues in that page/post (its style and other elements).
+
+As per Gemini, the potential downsides for this approach are:
+* HTML Validation: Your page might not pass strict HTML validation because <style> isn't supposed to be in the <body> (or within a <div>). However, all modern browsers are extremely forgiving of this and will render it correctly.
+* Minor Performance (negligible for one page): Styles loaded mid-document can theoretically cause a very slight flicker or re-render as the browser encounters them. For a single page, this is imperceptible.
+
+B) Dark mode style works in saved html file opened in browser but does not work properly when used in blog page/post. That's why I am removing that code from blog page/post.
